@@ -3,9 +3,8 @@
 #include <stdlib.h>
 #include <math.h>
 
-#define WIDTH 800
-#define HEIGHT 600
-#define MAX_ITER 10000
+#define WIDTH 7680
+#define HEIGHT 4320
 
 #define TAG_REQUEST 0
 #define TAG_TASK 1
