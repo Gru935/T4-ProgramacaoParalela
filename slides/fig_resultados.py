@@ -26,9 +26,8 @@ m_Ew = [1, 0.768756, 0.903360, 0.965902, 0.948392, 0.757477]
 plt.rcParams.update({"font.size": 8.5, "axes.grid": True, "grid.alpha": 0.35,
                      "axes.axisbelow": True})
 ideal = [1, 4, 8, 16, 32, 64]
-fig, ax = plt.subplots(2, 2, figsize=(8.4, 4.7))
-fig.subplots_adjust(hspace=0.62, wspace=0.28)
-a, b, c, d = ax[0, 0], ax[0, 1], ax[1, 0], ax[1, 1]
+fig, (a, b, c, d) = plt.subplots(1, 4, figsize=(13.5, 1.6))
+fig.subplots_adjust(wspace=0.34, bottom=0.32, top=0.79)
 
 def base(ax_):
     ax_.set_xscale("log", base=2); ax_.set_xticks(ideal); ax_.set_xticklabels(ideal)

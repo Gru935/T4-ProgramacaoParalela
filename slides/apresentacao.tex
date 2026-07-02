@@ -65,15 +65,12 @@ Carga irregular $\Rightarrow$ \textbf{balanceamento dinâmico}. Rodado em \textb
 
 % ===================== SLIDE 2 -- GRAFICOS E TABELAS =====================
 \begin{frame}{Resultados}
-\begin{columns}[c]
-\begin{column}{0.5\textwidth}
 \centering
-\includegraphics[width=\linewidth]{graficos.pdf}\\[1pt]
-{\scriptsize gráficos (a--d): híbrido $\times$ MPI pura}
-\end{column}
-\begin{column}{0.49\textwidth}
-\centering\scriptsize
-\setlength{\tabcolsep}{3.5pt}\renewcommand{\arraystretch}{0.9}
+\includegraphics[width=0.99\linewidth]{graficos.pdf}\\[1pt]
+
+\scriptsize
+\setlength{\tabcolsep}{4pt}\renewcommand{\arraystretch}{0.77}
+\begin{minipage}[t]{0.49\linewidth}\centering
 \textbf{Escalabilidade forte} (híbrido)\\[1pt]
 \begin{tabular}{r r r r}
 \toprule
@@ -84,9 +81,23 @@ proc. & Tempo (s) & $S$ & $E$ \\ \midrule
 32 &  3,31 & 28,1 & 0,88 \\
 64 &  2,01 & 46,3 & 0,72 \\ \bottomrule
 \end{tabular}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.49\linewidth}\centering
+\textbf{Escalabilidade forte} (MPI pura)\\[1pt]
+\begin{tabular}{r r r r}
+\toprule
+proc. & Tempo (s) & $S$ & $E$ \\ \midrule
+4  & 25,79 & 2,97 & 0,74 \\
+8  & 11,09 & 6,92 & 0,86 \\
+16 &  5,35 & 14,3 & 0,90 \\
+32 &  2,73 & 28,1 & 0,88 \\
+64 &  1,74 & 44,1 & 0,69 \\ \bottomrule
+\end{tabular}
+\end{minipage}
 
-\smallskip
-\textbf{Escalabilidade fraca} (híbrido)\quad{\tiny $S=$T$_\text{seq}/$T$_\text{exec}$}\\[1pt]
+\vspace{1pt}
+\begin{minipage}[t]{0.49\linewidth}\centering
+\textbf{Escalabilidade fraca} (híbrido)\\[1pt]
 \begin{tabular}{r r r r r}
 \toprule
 proc. & T$_\text{exec}$ & T$_\text{seq}$ & $S$ & $E$ \\ \midrule
@@ -96,11 +107,22 @@ proc. & T$_\text{exec}$ & T$_\text{seq}$ & $S$ & $E$ \\ \midrule
 32 & 17,7 &  559,2 & 31,5 & 0,98 \\
 64 & 22,2 & 1118,3 & 50,4 & 0,79 \\ \bottomrule
 \end{tabular}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.49\linewidth}\centering
+\textbf{Escalabilidade fraca} (MPI pura)\\[1pt]
+\begin{tabular}{r r r r r}
+\toprule
+proc. & T$_\text{exec}$ & T$_\text{seq}$ & $S$ & $E$ \\ \midrule
+4  &  99,8 &  306,9 & 3,1  & 0,77 \\
+8  &  84,9 &  613,7 & 7,2  & 0,90 \\
+16 &  79,4 & 1227,5 & 15,5 & 0,97 \\
+32 &  80,9 & 2454,9 & 30,3 & 0,95 \\
+64 & 101,3 & 4909,9 & 48,5 & 0,76 \\ \bottomrule
+\end{tabular}
+\end{minipage}
 
-\smallskip
-\textbf{Coordenador}\; dedica 1 núcleo \textbf{2,09s} $\cdot$ não dedica 2,48s $\cdot$ dedica um nó 4,04s
-\end{column}
-\end{columns}
+\vspace{1pt}
+{\scriptsize \textbf{Coordenador}\; dedica 1 núcleo \textbf{2,09s} $\cdot$ não dedica 2,48s $\cdot$ dedica um nó 4,04s}
 \end{frame}
 
 % ===================== SLIDE 3 -- CONCLUSAO =====================
