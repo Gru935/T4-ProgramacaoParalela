@@ -119,16 +119,11 @@ Dedica um nó    & 4,04s \\ \bottomrule
 
 % ===================== SLIDE 3 -- CONCLUSAO =====================
 \begin{frame}{Conclusões}
-\begin{itemize}
-  \item Cumprimos o modelo: \textbf{MPI Coordenador/Trabalhador} (1 processo pesado/nó) $+$ \textbf{workpool OpenMP sem mestre} (controle por estrutura de dados, 2 threads/núcleo com HT).
-  \medskip
-  \item \textbf{Boa escalabilidade}: speed-up de \textbf{46$\times$} (forte) e \textbf{50$\times$} (fraca) em 64 unidades --- escalabilidade fraca quase ideal.
-  \medskip
-  \item A queda de eficiência em 64 unidades é o \textbf{limite do Hyper-Threading} (2 fluxos/núcleo), não do algoritmo; no início há \emph{superlinearidade} por melhor uso de \textbf{cache}.
-  \medskip
-  \item \textbf{Alocação do coordenador}: vale dedicar \textbf{1 núcleo} a ele ($-16\%$, evita oversubscrição), mas \textbf{nunca um nó} inteiro ($+63\%$).
-  \medskip
-  \item \textbf{Híbrido $\times$ MPI pura}: desempenho \textbf{praticamente igual}, mas o híbrido usa \textbf{muito menos ranks} MPI (5 vs 64) --- menos memória e mensagens, vantagem que cresce com a escala.
+\begin{itemize}\setlength{\itemsep}{12pt}
+  \item A versão híbrida MPI + OpenMP foi implementada seguindo o modelo proposto --- Coordenador/Trabalhador entre os nós e \emph{workpool} sem mestre dentro do nó --- e sua correção se confirma pela saída idêntica à da versão sequencial.
+  \item A solução escala bem: speed-up de cerca de \textbf{46$\times$} em 64 núcleos, próximo do ideal até os núcleos físicos. A perda de eficiência aparece apenas na região de Hyper-Threading, como era esperado.
+  \item O híbrido teve desempenho equivalente ao da versão MPI pura, mas usando bem menos processos MPI --- o que reduz memória e comunicação e tende a compensar em maior escala.
+  \item Na alocação do coordenador, o melhor é reservar apenas um núcleo para ele, nunca um nó inteiro.
 \end{itemize}
 \end{frame}
 
