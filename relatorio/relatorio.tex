@@ -39,33 +39,31 @@
 \begin{multicols}{2}
 
 \section*{1. Introdução}
-Implementa-se, em C, a versão \textbf{híbrida MPI + OpenMP} do cálculo do \textbf{conjunto de Mandelbrot} (imagem \textbf{7680$\times$4320}), reaproveitando o \emph{Coordenador/Trabalhador} do grupo. São \textbf{dois níveis de paralelismo}: o \textbf{MPI} distribui blocos de linhas entre os \textbf{nós} (\textbf{um processo pesado por nó}) e o \textbf{OpenMP} usa os núcleos \emph{dentro} de cada nó no modelo \textbf{workpool sem mestre}. Avaliam-se \emph{speed-up}, eficiência e escalabilidade \textbf{forte} e \textbf{fraca} em até \textbf{4 nós}, o efeito do \textbf{Hyper-Threading}, as \textbf{formas de alocar o coordenador} e a \textbf{comparação com a MPI pura}.
+Implementa-se, em C, a versão \textbf{híbrida MPI + OpenMP} do cálculo do \textbf{conjunto de Mandelbrot} (imagem \textbf{7680$\times$4320}), reaproveitando o \emph{Coordenador/Trabalhador} do grupo. São \textbf{dois níveis de paralelismo}: o \textbf{MPI} distribui blocos de linhas entre os \textbf{nós} (\textbf{um processo pesado por nó}) e o \textbf{OpenMP} usa os núcleos \emph{dentro} de cada nó no modelo \textbf{workpool sem mestre}. Avaliam-se \emph{speed-up}, eficiência e escalabilidade \textbf{forte} e \textbf{fraca} em \textbf{4 nós}, o efeito do \textbf{Hyper-Threading}, as \textbf{formas de alocar o coordenador} e a \textbf{comparação com a MPI pura}.
 
 \section*{2. Modelo híbrido}
-\textbf{Entre nós (MPI).} Modelo \textbf{Coordenador/Trabalhador} \emph{idêntico} ao da MPI pura, preservando a comparabilidade. O \texttt{rank 0} distribui \textbf{blocos de \texttt{rows\_per\_task} linhas sob demanda}: o trabalhador pede (\texttt{TAG\_REQUEST}), recebe \texttt{TAG\_TASK} (tarefa) ou \texttt{TAG\_STOP} (fim), calcula e devolve (\texttt{TAG\_RESULT}). Há \textbf{um processo pesado por nó}, com todos os núcleos do nó à disposição das threads. Para cada pixel itera-se $z\leftarrow z^2+c$ até $|z|>2$ ou \texttt{max\_iter}; pontos \emph{internos} custam \texttt{max\_iter} e \emph{externos} terminam cedo, gerando \textbf{carga irregular} que exige \textbf{balanceamento dinâmico}.
+\textbf{Entre nós (MPI).} Modelo \textbf{Coordenador/Trabalhador} \emph{idêntico} ao da MPI pura. O \texttt{rank 0} distribui \textbf{blocos de \texttt{rows\_per\_task} linhas sob demanda}: o trabalhador pede (\texttt{TAG\_REQUEST}), recebe \texttt{TAG\_TASK} ou \texttt{TAG\_STOP}, calcula e devolve (\texttt{TAG\_RESULT}). Há \textbf{um processo pesado por nó}, com todos os núcleos à disposição das threads. Para cada pixel itera-se $z\leftarrow z^2+c$ até $|z|>2$ ou \texttt{max\_iter}; pontos \emph{internos} custam \texttt{max\_iter} e \emph{externos} terminam cedo, gerando \textbf{carga irregular} que exige \textbf{balanceamento dinâmico}.
 
 \section*{3. Workpool OpenMP sem mestre}
-Cada bloco é processado por uma \textbf{região paralela} (\texttt{\#pragma omp parallel}). O controle está numa \textbf{estrutura de dados compartilhada} \texttt{WorkPool\{next,total\}}: \textbf{todas as threads} executam o mesmo laço e \textbf{retiram atomicamente} a próxima linha (\texttt{\#pragma omp atomic capture}) até esvaziar o pool --- \textbf{sem thread mestre}, com escalonamento \emph{self-service} emergindo da estrutura de dados (modelo \emph{workpool}/\emph{bag-of-tasks}). A granularidade é de \textbf{uma linha} (7680 px), que amortiza a sincronização e ainda equilibra a carga. Usa-se \texttt{MPI\_Init\_thread} (\texttt{MPI\_THREAD\_FUNNELED}; só a thread principal chama MPI) e \texttt{OMP\_NUM\_THREADS=16} (8 núcleos $\times$ 2 HT).
+Cada bloco é processado por uma \textbf{região paralela} (\texttt{\#pragma omp parallel}). O controle está numa \textbf{estrutura de dados compartilhada} \texttt{WorkPool\{next,total\}}: \textbf{todas as threads} executam o mesmo laço e \textbf{retiram atomicamente} a próxima linha (\texttt{\#pragma omp atomic capture}) até esvaziar o pool --- \textbf{sem thread mestre}, com escalonamento \emph{self-service} emergindo da estrutura de dados. A granularidade é de \textbf{uma linha} (7680 px). Usa-se \texttt{MPI\_Init\_thread} (\texttt{MPI\_THREAD\_FUNNELED}) e \texttt{OMP\_NUM\_THREADS} de 1 a 16 (até 2 threads por núcleo, HT).
 
 \section*{4. Alocação do coordenador}
-O coordenador só distribui/coleta, ficando \textbf{quase ocioso}. Há duas alocações, escolhidas \textbf{sem alterar o código} (via SLURM, \texttt{-n 4} vs \texttt{-n 5}): \emph{dedicada} --- ocupa um nó inteiro (em 4 nós sobram 3 trabalhadores e o nó do coordenador fica ocioso); e \emph{compartilhada} --- divide o nó com um trabalhador (4 trabalhadores em 4 nós).
+O coordenador só distribui/coleta, ficando \textbf{quase ocioso}. Por isso adota-se \textbf{sempre} a alocação \texttt{-N 4 -n 5}: 4 nós, \textbf{1 coordenador + 4 trabalhadores}, com o coordenador \emph{compartilhando} o nó 0 (\textbf{sem dedicar um nó a ele}). Como comparação, mede-se também a alocação \emph{dedicada} \texttt{-N 4 -n 4} (coordenador sozinho num nó, só 3 trabalhadores).
 
 \section*{5. Metodologia}
-Até \textbf{4 nós} da Atlantica (LAD), SLURM, Xeon E5520, \textbf{16 CPUs lógicas/nó} (8 núcleos $\times$ 2 HT). \texttt{ladcomp -env mpicc -O3 -fopenmp}. Tempo por \texttt{MPI\_Wtime} \emph{antes} do I/O. Baseline $T(1)=93{,}19$\,s (sequencial, \texttt{max\_iter}=2000). \textbf{Forte}: \texttt{max\_iter} fixo, variando recursos. \textbf{Fraca}: \texttt{max\_iter}=1500$\times$workers. Speed-up$\,=T(1)/T(p)$; Eficiência$\,=$Speed-up$/p$. Saída \textbf{byte-idêntica} à sequencial (\texttt{md5}).
+4 nós da Atlantica (LAD), SLURM, Xeon E5520, \textbf{16 CPUs lógicas/nó} (8 núcleos $\times$ 2 HT). \texttt{ladcomp -env mpicc -O3 -fopenmp}. Tempo por \texttt{MPI\_Wtime} \emph{antes} do I/O. Baseline $T(1)=93{,}19$\,s (sequencial, \texttt{max\_iter}=2000). O híbrido roda \textbf{sempre em \texttt{-N 4 -n 5}} e a escala se dá pelo \textbf{nº de threads por trabalhador} (\texttt{OMP\_NUM\_THREADS} $\in\{1,2,4,8,16\}$, ou seja \textbf{4 a 64 núcleos} de cálculo = 4 trab.\ $\times$ threads). \textbf{Forte}: \texttt{max\_iter}=2000 fixo. \textbf{Fraca}: \texttt{max\_iter}=1500$\times$threads (carga por núcleo constante). Speed-up$\,=T(1)/T(p)$; Eficiência$\,=$Speed-up$/p$, $p=4\times$threads. MPI pura: 1 processo por unidade (32 = 1/núcleo; 64 = 2/núcleo, HT). Saída \textbf{byte-idêntica} à sequencial (\texttt{md5}).
 
 \section*{6. Resultados e análise}
-\textbf{Workpool (Tab.\,1, Fig.\,a).} Escala quase linear até os 8 núcleos físicos (7,34$\times$, 92\%) e chega a \textbf{12,70$\times$} com 16 threads --- ganho de $\sim$73\% via \textbf{Hyper-Threading}, com \emph{todas} as threads ocupadas apesar da carga irregular.
+\textbf{Escalabilidade forte (Tab.\,1, Fig.\,a).} Com a alocação MPI fixa e aumentando as threads dos 4 trabalhadores, o speed-up cresce de \textbf{4,3$\times$} (4 núcleos) a \textbf{46,3$\times$} (64 núcleos). A eficiência fica próxima do ideal até 16 núcleos ($\approx$1,0) e cai a \textbf{0,72} em 64, quando entram os fluxos de \textbf{Hyper-Threading} (2 por núcleo físico) e há leve oversubscrição no nó do coordenador. A pequena \emph{superlinearidade} com poucas threads ($E>1$) vem do menor \emph{working-set} por núcleo (melhor uso de cache) ante o baseline sequencial de 1 núcleo.
 
-\textbf{Escalabilidade forte (Tab.\,3, Fig.\,b).} O híbrido atinge \textbf{31$\times$ em 4 nós}. A eficiência cai em 4 nós (0,65) porque o tempo já é de $\sim$3\,s e o \textbf{custo fixo} --- MPI e a \textbf{coleta da imagem de $\sim$127\,MB} no coordenador ($O(N)$, independe de $p$) --- domina (Amdahl); com carga maior aproxima-se do ideal.
+\textbf{Híbrido $\times$ MPI pura (Tab.\,3, Fig.\,b).} Na mesma alocação de 4 nós, o híbrido \textbf{praticamente empata} com a MPI pura: em 64 unidades, \textbf{2,01\,s (46,3$\times$)} vs 2,00\,s (46,5$\times$); em 32 unidades, 3,31\,s vs 3,20\,s. Distribuir por \emph{threads} (híbrido) ou por \emph{processos} (MPI pura) rende igual neste problema \emph{compute-bound} --- mas o híbrido usa \textbf{muito menos ranks} MPI (5 vs 64) e menos memória/mensagens, vantagem que cresce com a escala.
 
-\textbf{Alocação do coordenador (Fig.\,c, Tab.\,4).} Dedicar um nó ao coordenador ocioso \textbf{desperdiça 1/4 dos recursos}; \emph{compartilhar} (4 trabalhadores) reduz o tempo de \textbf{2,96 para 2,35\,s --- 20,7\% mais rápido}.
+\textbf{Alocação do coordenador (Tab.\,4, Fig.\,c).} Dedicar um nó inteiro ao coordenador ocioso (\texttt{n4}, 3 trabalhadores) desperdiça 1/4 da máquina: 2,96\,s. \emph{Compartilhar} seu nó (\texttt{n5}, 4 trabalhadores) usa os 4 nós e cai para \textbf{2,01\,s --- 32\% mais rápido}. Por isso a alocação padrão é \texttt{n5}.
 
-\textbf{Híbrido $\times$ MPI pura (Tab.\,4).} Nesta escala \emph{compute-bound}, a \textbf{MPI pura com HT} (64 proc., todos os 4 nós calculando) é a mais rápida (\textbf{2,00\,s, 46,5$\times$}); o híbrido \emph{compartilhado} fica competitivo (2,35\,s, 39,7$\times$) e o \emph{dedicado} perde por ociosar um nó. As vantagens do híbrido --- menos \emph{ranks}, menos memória e mensagens --- surgem em \textbf{escalas maiores} ou com mais comunicação.
-
-\textbf{Escalabilidade fraca (Tab.\,2, Fig.\,d).} Com carga proporcional aos trabalhadores, o tempo permanece \textbf{praticamente constante} (5,1--5,4\,s), com eficiência \textbf{97--104\%} --- próximo do ideal.
+\textbf{Escalabilidade fraca (Tab.\,2, Fig.\,d).} Com a carga proporcional às threads (\texttt{max\_iter}=1500$\times$threads), o tempo fica \textbf{praticamente constante} até 32 núcleos (16,6$\to$17,7\,s, eficiência \textbf{0,94}) e sobe a 22,2\,s em 64 (0,75), de novo pela região de HT. Ou seja, escalabilidade fraca quase ideal na faixa de núcleos físicos.
 
 \section*{7. Conclusão}
-A versão cumpre o modelo: \textbf{MPI Coordenador/Trabalhador} (um processo por nó) + \textbf{workpool OpenMP sem mestre} (controle por estrutura de dados, uma thread por núcleo lógico, HT). O \emph{workpool} escala bem no nó (12,7$\times$) e a escalabilidade \textbf{fraca} é quase ideal. \textbf{Dedicar um nó ao coordenador é desvantajoso} (compartilhar é 20,7\% melhor). Em pequena escala \emph{compute-bound} a \textbf{MPI pura} vence em tempo bruto; o híbrido fica competitivo ao compartilhar o coordenador e tende a ganhar em escalas maiores.
+A versão cumpre o modelo: \textbf{MPI Coordenador/Trabalhador} (um processo por nó) + \textbf{workpool OpenMP sem mestre}. Seguindo a metodologia de \texttt{-N 4 -n 5} escalando as threads, o híbrido atinge \textbf{46,3$\times$} (64 núcleos), \textbf{empatado com a MPI pura}, com escalabilidade fraca quase ideal até os núcleos físicos. \textbf{Compartilhar o nó do coordenador (\texttt{n5}) é 32\% melhor que dedicá-lo (\texttt{n4})}. A eficiência cai na região de Hyper-Threading, como esperado.
 
 \end{multicols}
 
@@ -74,61 +72,60 @@ A versão cumpre o modelo: \textbf{MPI Coordenador/Trabalhador} (um processo por
 
 \begin{multicols}{2}
 \begin{center}
-\textbf{Tabela 1 --- Workpool OpenMP (1 nó)}\\[3pt]
-\begin{tabular}{rrrr}
+\textbf{Tabela 1 --- Escalabilidade forte (híbrido \texttt{N4 n5})}\\[3pt]
+\begin{tabular}{rrrrr}
 \toprule
-Threads & Tempo (s) & Speed-up & Efic. \\ \midrule
-1  & 87,01 & 1,00  & 1,00 \\
-2  & 43,68 & 1,99  & 1,00 \\
-4  & 23,40 & 3,72  & 0,93 \\
-8  & 11,85 & 7,34  & 0,92 \\
-16 &  6,85 & 12,70 & 0,79 \\ \bottomrule
+threads & $p$ & Tempo (s) & Speed-up & Efic. \\ \midrule
+1  &  4 & 21,89 &  4,26 & 1,06 \\
+2  &  8 & 10,98 &  8,49 & 1,06 \\
+4  & 16 &  5,86 & 15,9  & 0,99 \\
+8  & 32 &  3,31 & 28,1  & 0,88 \\
+16 & 64 &  2,01 & 46,3  & 0,72 \\ \bottomrule
 \end{tabular}
 
 \vfill\columnbreak
-\textbf{Tabela 2 --- Escalabilidade fraca}\\[3pt]
-\begin{tabular}{lrrr}
+\textbf{Tabela 2 --- Escalabilidade fraca (\texttt{N4 n5})}\\[3pt]
+\begin{tabular}{rrrr}
 \toprule
-Nós & \texttt{max\_iter} & Tempo (s) & Efic. \\ \midrule
-2 (1 w.) & 1500 & 5,25 & 1,00 \\
-3 (2 w.) & 3000 & 5,06 & 1,04 \\
-4 (3 w.) & 4500 & 5,40 & 0,97 \\ \bottomrule
+threads & \texttt{max\_iter} & Tempo (s) & Efic. \\ \midrule
+1  &  1500 & 16,59 & 1,00 \\
+2  &  3000 & 16,34 & 1,02 \\
+4  &  6000 & 16,88 & 0,98 \\
+8  & 12000 & 17,75 & 0,94 \\
+16 & 24000 & 22,18 & 0,75 \\ \bottomrule
 \end{tabular}
 \end{center}
 \end{multicols}
 
 \begin{center}
-\textbf{Tabela 3 --- Escalabilidade forte: híbrido $\times$ MPI pura (HT)}\\[3pt]
-\begin{tabular}{r rrr rrr}
+\textbf{Tabela 3 --- Híbrido $\times$ MPI pura (4 nós, \texttt{max\_iter}=2000)}\\[3pt]
+\begin{tabular}{llrr}
 \toprule
- & \multicolumn{3}{c}{Híbrido (1 proc/nó, 16 threads)} & \multicolumn{3}{c}{MPI pura (16 proc/nó)} \\
-\cmidrule(lr){2-4}\cmidrule(lr){5-7}
-nós & Tempo (s) & Speed-up & Efic. & Tempo (s) & Speed-up & Efic. \\ \midrule
-2 & 7,08 & 13,2 & 0,82 & 3,35 & 27,8 & 0,87 \\
-3 & 3,45 & 27,0 & 0,84 & 2,74 & 34,1 & 0,71 \\
-4 & 2,96 & 31,5 & 0,66 & 2,00 & 46,5 & 0,73 \\ \bottomrule
+Versão & Unidades & Tempo (s) & Speed-up \\ \midrule
+Híbrido (16 threads/trab.) & 64 threads   & \textbf{2,01} & \textbf{46,3} \\
+MPI pura (2 proc/núcleo, HT) & 64 processos & 2,00          & 46,5 \\
+Híbrido (8 threads/trab.)  & 32 threads   & 3,31          & 28,1 \\
+MPI pura (1 proc/núcleo)   & 32 processos & 3,20          & 29,1 \\ \bottomrule
 \end{tabular}
 \end{center}
 
 \vspace{3pt}
 \begin{center}
-\textbf{Tabela 4 --- Comparação em 4 nós (alocação do coordenador e híbrido $\times$ MPI)}\\[3pt]
-\begin{tabular}{lrrr}
+\textbf{Tabela 4 --- Alocação do coordenador (4 nós, 16 threads/trab.)}\\[3pt]
+\begin{tabular}{lrrrr}
 \toprule
-Configuração & Processos & Tempo (s) & Speed-up \\ \midrule
-MPI pura (HT, todos os nós calculando)       & 64           & \textbf{2,00} & \textbf{46,5} \\
-Híbrido --- coordenador \emph{compartilhado} & 4 nós (4 w.) & 2,35          & 39,7 \\
-Híbrido --- coordenador \emph{dedicado}      & 4 nós (3 w.) & 2,96          & 31,5 \\
-MPI pura (1 processo por núcleo físico)      & 32           & 3,20          & 29,1 \\ \bottomrule
+Alocação & Proc. & Trab. & Tempo (s) & Speed-up \\ \midrule
+\emph{Compartilhado} (\texttt{-N 4 -n 5}) & 5 & 4 & \textbf{2,01} & \textbf{46,3} \\
+\emph{Dedicado} (\texttt{-N 4 -n 4})      & 4 & 3 & 2,96          & 31,5 \\ \bottomrule
 \end{tabular}
 \end{center}
 
-{\small $T(1)=93{,}19$\,s (sequencial, 1 núcleo, \texttt{max\_iter}=2000); Speed-up$\,=T(1)/T(p)$; Eficiência$\,=$Speed-up$/p$, $p=$ núcleos lógicos de cálculo (híbrido: trabalhadores$\times$16; MPI pura: nº de processos). Imagem 7680$\times$4320. Fraca: eficiência $=T(\text{1 trab.})/T(p)$.}
+{\small $T(1)=93{,}19$\,s (sequencial, 1 núcleo, \texttt{max\_iter}=2000); Speed-up$\,=T(1)/T(p)$; Eficiência$\,=$Speed-up$/p$, com $p=4\times$threads (núcleos de cálculo = 4 trabalhadores $\times$ threads). Imagem 7680$\times$4320. Escalabilidade fraca: eficiência $=T(\text{1 thread})/T(p)$.}
 
 \vspace{5pt}
 \begin{center}
 \includegraphics[width=0.86\linewidth]{graficos.pdf}\\[2pt]
-{\small Figura 1 --- (a) \emph{workpool} OpenMP dentro de um nó (speed-up $\times$ threads); (b) escalabilidade forte, híbrido $\times$ MPI pura; (c) alocação do coordenador; (d) escalabilidade fraca.}
+{\small Figura 1 --- (a) escalabilidade forte (speed-up $\times$ threads, \texttt{N4 n5}); (b) híbrido $\times$ MPI pura em 4 nós; (c) alocação do coordenador; (d) escalabilidade fraca.}
 \end{center}
 
 \newpage

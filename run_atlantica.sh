@@ -47,16 +47,12 @@ emit(){ echo "RESULT $*"; echo "$*" >> $OUT; }
 # ---------- baseline sequencial (referencia do speed-up) ----------
 t=$(./mandelbrot-seq $MAXITER | gt);                 emit "baseline,seq,1,1,1,$MAXITER,-,$t"
 
-# ---------- workpool OpenMP: threads dentro de UM trabalhador (N=2) ----------
+# ---------- escalabilidade FORTE: HIBRIDO sempre -N 4 -n 5, variando threads ----
+# Metodologia do professor: 4 nos, 1 coordenador + 4 trabalhadores (coordenador
+# compartilha o no 0); escala pelo nº de threads por trabalhador -> 4 a 64 nucleos.
 for th in 1 2 4 8 16; do
-  t=$(OMP_NUM_THREADS=$th srun --exclusive -N 2 -n 2 -c 16 ./mandelbrot-hib $MAXITER $ROWS | gt)
-  emit "omp_threads,hib,2,2,$th,$MAXITER,$ROWS,$t"
-done
-
-# ---------- escalabilidade FORTE: HIBRIDO, 16 threads/no, varia nos ----------
-for N in 2 3 4; do
-  t=$(OMP_NUM_THREADS=16 srun --exclusive -N $N -n $N -c 16 ./mandelbrot-hib $MAXITER $ROWS | gt)
-  emit "forte_hib,hib,$N,$N,16,$MAXITER,$ROWS,$t"
+  t=$(OMP_NUM_THREADS=$th srun --exclusive -N 4 -n 5 --overcommit ./mandelbrot-hib $MAXITER $ROWS | gt)
+  emit "forte_threads,hib,4,5,$th,$MAXITER,$ROWS,$t"
 done
 
 # ---------- escalabilidade FORTE: MPI PURA, 1 processo por CPU logica (HT) ----
@@ -81,11 +77,12 @@ emit "coord_dedicado,hib,4,4,16,$MAXITER,$ROWS,$t"
 t=$(OMP_NUM_THREADS=16 srun --exclusive -N 4 -n 5 --overcommit ./mandelbrot-hib $MAXITER $ROWS | gt)
 emit "coord_compartilhado,hib,4,5,16,$MAXITER,$ROWS,$t"
 
-# ---------- escalabilidade FRACA: HIBRIDO, carga proporcional aos workers -----
-for N in 2 3 4; do
-  w=$((N-1)); mi=$((WEAK_BASE*w))
-  t=$(OMP_NUM_THREADS=16 srun --exclusive -N $N -n $N -c 16 ./mandelbrot-hib $mi $ROWS | gt)
-  emit "fraca_hib,hib,$N,$N,16,$mi,$ROWS,$t"
+# ---------- escalabilidade FRACA: HIBRIDO -N 4 -n 5, carga proporcional as threads
+# Carga por nucleo constante: max_iter = WEAK_BASE * threads.
+for th in 1 2 4 8 16; do
+  mi=$((WEAK_BASE*th))
+  t=$(OMP_NUM_THREADS=$th srun --exclusive -N 4 -n 5 --overcommit ./mandelbrot-hib $mi $ROWS | gt)
+  emit "fraca_threads,hib,4,5,$th,$mi,$ROWS,$t"
 done
 
 echo "### FIM - resultados em $OUT"

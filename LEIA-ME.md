@@ -47,10 +47,10 @@ Cada nó do Atlantica tem **16 CPUs lógicas = 8 núcleos × 2 HT**, logo o híb
 `OMP_NUM_THREADS=16` (uma thread por núcleo lógico).
 
 ```bash
-# Atlantica (SLURM) — 1 processo pesado MPI por nó, em 4 nós:
-#   --exclusive -N 4 -n 4  -> 1 tarefa por nó (1 coordenador + 3 trabalhadores)
-#   -c 16                  -> as 16 CPUs do nó ficam disponíveis para as threads
-OMP_NUM_THREADS=16 srun --exclusive -N 4 -n 4 -c 16 ./mandelbrot-hib 2000 64
+# Atlantica (SLURM) — híbrido SEMPRE em -N 4 -n 5 (4 nós, 1 coordenador + 4
+# trabalhadores; o coordenador compartilha o nó 0). A escala é feita variando
+# OMP_NUM_THREADS de 1 a 16 (4 a 64 núcleos de cálculo = 4 trab. × threads):
+OMP_NUM_THREADS=16 srun --exclusive -N 4 -n 5 --overcommit ./mandelbrot-hib 2000 64
 
 # MPI pura para comparação (1 processo por CPU lógica = 2 por núcleo, HT):
 srun --exclusive -N 4 -n 64 ./mandelbrot-mpi 2000
@@ -86,23 +86,21 @@ ssh -o PasswordAuthentication=yes cp12@atlantica.lad.pucrs.br
 
 ## Plano de experimentos (itens de avaliação)
 
-O script `bench.sh` gera um `results.csv` (`versao,np,threads,maxiter,rows,segundos`).
-Ajuste a lista de configurações conforme nº de núcleos/nó da Atlantica.
+O híbrido roda **sempre em `-N 4 -n 5`** (4 nós, 1 coordenador + 4 trabalhadores)
+e a escala é feita **aumentando as threads** (`OMP_NUM_THREADS ∈ {1,2,4,8,16}`,
+ou seja `p = 4 × threads` núcleos de cálculo). `S(p)=T(1)/T(p)`, `E(p)=S(p)/p`,
+com `T(1)=93,19 s` (sequencial). O `run_atlantica.sh` coleta tudo em `results_t4.csv`.
 
-1. **Speed-up e eficiência (4 nós).** `S(p)=T_seq/T(p)`, `E(p)=S(p)/p`,
-   onde `p` = nº de núcleos efetivamente computando.
+1. **Escalabilidade forte** — `max_iter=2000` fixo, variando threads. Ideal: `S ∝ p`.
 
-2. **Escalabilidade forte** — problema fixo (`max_iter` e imagem constantes),
-   aumentar recursos (threads e nós). Ideal: tempo cai ∝ `p`.
+2. **Escalabilidade fraca** — carga por núcleo constante: `max_iter = 1500 × threads`.
+   Ideal: tempo constante; `E = T(1 thread)/T(p)`.
 
-3. **Escalabilidade fraca** — carga por recurso constante: `max_iter ∝ p`.
-   Ideal: tempo aproximadamente constante; `E = T(1)/T(p)`.
+3. **Alocação do coordenador** — comparar (16 threads/trab.):
+   - *compartilhado* (`-N 4 -n 5`, padrão): coordenador divide o nó 0 com um
+     trabalhador → 4 nós computando;
+   - *dedicado* (`-N 4 -n 4`): coordenador sozinho num nó → só 3 trabalhadores
+     (o nó do coordenador fica quase ocioso). Dedicar custa ~32% de desempenho.
 
-4. **Alocação do coordenador** — comparar:
-   - *dedicado*: 4 processos em 4 nós → 1 coordenador + 3 trabalhadores (o nó do
-     coordenador fica ocioso, pois ele só distribui tarefas);
-   - *não dedicado*: 5 processos em 4 nós → coordenador divide o nó 0 com um
-     trabalhador (4 nós computando). Controlado pelo hostfile, sem mudar o código.
-
-5. **Híbrido × MPI puro** — nas 4 máquinas, comparar o híbrido (1 processo/nó +
-   threads) com o MPI puro (1 processo pesado por core, ou 2 por core com HT).
+4. **Híbrido × MPI puro** — em 4 nós, híbrido (32/64 threads) vs MPI puro
+   (1 processo pesado por core = 32; ou dois por core com HT = 64).

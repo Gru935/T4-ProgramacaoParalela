@@ -19,3 +19,13 @@ coord_compartilhado,hib,4,5,16,2000,64,2.349887
 fraca_hib,hib,2,2,16,1500,64,5.248208
 fraca_hib,hib,3,3,16,3000,64,5.058961
 fraca_hib,hib,4,4,16,4500,64,5.404228
+forte_threads,hib,4,5,1,2000,64,21.888989
+forte_threads,hib,4,5,2,2000,64,10.976950
+forte_threads,hib,4,5,4,2000,64,5.855055
+forte_threads,hib,4,5,8,2000,64,3.314190
+forte_threads,hib,4,5,16,2000,64,2.012548
+fraca_threads,hib,4,5,1,1500,64,16.594238
+fraca_threads,hib,4,5,2,3000,64,16.339467
+fraca_threads,hib,4,5,4,6000,64,16.879343
+fraca_threads,hib,4,5,8,12000,64,17.745419
+fraca_threads,hib,4,5,16,24000,64,22.178566

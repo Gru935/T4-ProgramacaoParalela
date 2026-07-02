@@ -1,72 +1,87 @@
 #!/usr/bin/env python3
+# Gera relatorio/graficos.pdf a partir dos dados de results_t4.csv.
+# Metodologia do professor: hibrido SEMPRE em -N 4 -n 5 (1 coordenador + 4
+# trabalhadores, coordenador compartilhando o no), escalando por THREADS.
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import numpy as np
+import os
 
 SEQ = 93.194233
 
-# --- dados (results_t4.csv) ---
-th       = [1, 2, 4, 8, 16]
-t_omp    = [87.006309, 43.679385, 23.400256, 11.850233, 6.849682]
-S_omp    = [t_omp[0]/x for x in t_omp]
+# --- Escalabilidade FORTE: hibrido N4 n5, max_iter=2000, variando threads ---
+th      = [1, 2, 4, 8, 16]
+t_forte = [21.888989, 10.976950, 5.855055, 3.314190, 2.012548]
+p_forte = [4 * t for t in th]                 # 4 trabalhadores x threads
+S_forte = [SEQ / t for t in t_forte]
+ideal_S = p_forte                             # speed-up ideal = nº de cores
 
-nodes    = [2, 3, 4]
-# Para o ponto de 4 nós usa-se a medicao do experimento do coordenador
-# (2.962407 s, pareada com o caso "compartilhado"), igual a Tabela 4.
-t_hib    = [7.075377, 3.454101, 2.962407]
-t_mpiht  = [3.351889, 2.735431, 2.002144]
-S_hib    = [SEQ/x for x in t_hib]
-S_mpiht  = [SEQ/x for x in t_mpiht]
+# --- Hibrido x MPI pura, em 4 nos (mesma quantidade de unidades de calculo) ---
+units    = [32, 64]
+S_hib_c  = [SEQ / 3.314190, SEQ / 2.012548]   # hibrido: 8 e 16 threads/worker
+S_mpi_c  = [SEQ / 3.203527, SEQ / 2.002144]   # MPI pura: 32 e 64 processos
 
-coord_lbl = ["Dedicado\n(3 workers)", "Compartilhado\n(4 workers)"]
-coord_t   = [2.962407, 2.349887]
+# --- Alocacao do coordenador (4 nos, 16 threads) ---
+coord_lbl = ["Dedicado (n4)\n3 trabalhadores", "Compartilhado (n5)\n4 trabalhadores"]
+coord_t   = [2.962407, 2.012548]
 
-t_fraca  = [5.248208, 5.058961, 5.404228]   # carga ∝ workers (1500/3000/4500)
+# --- Escalabilidade FRACA: N4 n5, carga proporcional as threads ---
+t_fraca = [16.594238, 16.339467, 16.879343, 17.745419, 22.178566]
 
 plt.rcParams.update({"font.size": 8.5, "axes.grid": True,
                      "grid.alpha": 0.35, "axes.axisbelow": True})
-fig, ax = plt.subplots(2, 2, figsize=(8.0, 4.35))
+fig, ax = plt.subplots(2, 2, figsize=(8.0, 4.5))
 
-# (a) Workpool OpenMP — speedup x threads
-a = ax[0,0]
-a.plot(th, th, "--", color="gray", label="Ideal")
-a.plot(th, S_omp, "o-", color="#1f77b4", label="Workpool")
-a.axvline(8, color="orange", ls=":", lw=1); a.text(8.2, 1.5, "8 núcleos\nfísicos", fontsize=7, color="orange")
-a.set_title("(a) Workpool OpenMP (1 nó trabalhador)")
-a.set_xlabel("threads"); a.set_ylabel("Speed-up (vs 1 thread)")
-a.set_xticks(th); a.legend(fontsize=8, loc="upper left")
+# (a) FORTE: speed-up x threads (N4 n5)
+a = ax[0, 0]
+a.plot(th, ideal_S, "--", color="gray", label="Ideal (4$\\times$threads)")
+a.plot(th, S_forte, "o-", color="#1f77b4", label="Híbrido N4 n5")
+for x, y in zip(th, S_forte):
+    a.annotate(f"{y:.0f}$\\times$", (x, y), textcoords="offset points",
+               xytext=(4, -9), fontsize=7)
+a.set_title("(a) Escalabilidade forte (N4 n5, max\\_iter=2000)")
+a.set_xlabel("threads por trabalhador"); a.set_ylabel("Speed-up (vs sequencial)")
+a.set_xscale("log", base=2); a.set_xticks(th); a.set_xticklabels(th)
+a.legend(fontsize=7.5, loc="upper left")
 
-# (b) Escalabilidade forte — speedup x nós: híbrido vs MPI pura
-b = ax[0,1]
-b.plot(nodes, S_hib,   "o-", color="#2ca02c", label="Híbrido (1 proc/nó+16 th)")
-b.plot(nodes, S_mpiht, "s-", color="#d62728", label="MPI pura (16 proc/nó, HT)")
-for x,y in zip(nodes,S_hib):   b.annotate(f"{y:.0f}×", (x,y), textcoords="offset points", xytext=(0,-12), fontsize=7)
-for x,y in zip(nodes,S_mpiht): b.annotate(f"{y:.0f}×", (x,y), textcoords="offset points", xytext=(0,6), fontsize=7)
-b.set_title("(b) Escalabilidade forte (max_iter=2000)")
-b.set_xlabel("nós"); b.set_ylabel("Speed-up (vs sequencial)")
-b.set_xticks(nodes); b.legend(fontsize=7.5, loc="upper left")
+# (b) Hibrido x MPI pura (4 nos)
+b = ax[0, 1]
+x = np.arange(len(units)); w = 0.38
+b.bar(x - w/2, S_hib_c, w, color="#2ca02c", label="Híbrido (N4 n5, threads)")
+b.bar(x + w/2, S_mpi_c, w, color="#d62728", label="MPI pura (processos)")
+for i, (h, m) in enumerate(zip(S_hib_c, S_mpi_c)):
+    b.text(i - w/2, h + 0.6, f"{h:.0f}", ha="center", fontsize=7)
+    b.text(i + w/2, m + 0.6, f"{m:.0f}", ha="center", fontsize=7)
+b.set_title("(b) Híbrido $\\times$ MPI pura (4 nós)")
+b.set_xlabel("unidades de cálculo (threads / processos)"); b.set_ylabel("Speed-up")
+b.set_xticks(x); b.set_xticklabels(["32", "64"]); b.set_ylim(0, 56)
+b.legend(fontsize=7.5, loc="upper left")
 
-# (c) Alocação do coordenador — barras
-c = ax[1,0]
+# (c) Alocacao do coordenador
+c = ax[1, 0]
 bars = c.bar(coord_lbl, coord_t, color=["#9467bd", "#17becf"], width=0.55)
-for r,v in zip(bars, coord_t): c.text(r.get_x()+r.get_width()/2, v+0.05, f"{v:.2f}s", ha="center", fontsize=8)
-c.set_title("(c) Alocação do coordenador (4 nós)")
+for r, v in zip(bars, coord_t):
+    c.text(r.get_x() + r.get_width()/2, v + 0.05, f"{v:.2f}s", ha="center", fontsize=8)
+c.set_title("(c) Alocação do coordenador (4 nós, 16 threads)")
 c.set_ylabel("Tempo (s)"); c.set_ylim(0, 3.6)
-c.annotate("−20,7%", xy=(1, 2.35), xytext=(1, 3.15), ha="center", color="green",
+c.annotate("$-$32%", xy=(1, 2.01), xytext=(1, 3.15), ha="center", color="green",
            fontsize=9, fontweight="bold",
            arrowprops=dict(arrowstyle="->", color="green", lw=1.3))
 
-# (d) Escalabilidade fraca — tempo ~constante
-d = ax[1,1]
-d.plot(nodes, t_fraca, "D-", color="#8c564b", label="Híbrido (carga ∝ workers)")
+# (d) FRACA: tempo x threads (N4 n5, carga proporcional)
+d = ax[1, 1]
+d.plot(th, t_fraca, "D-", color="#8c564b", label="Híbrido (carga $\\propto$ threads)")
 d.axhline(t_fraca[0], color="gray", ls="--", lw=1, label="Ideal (constante)")
-for x,y in zip(nodes,t_fraca): d.annotate(f"{y:.2f}s", (x,y), textcoords="offset points", xytext=(0,7), fontsize=7)
-d.set_title("(d) Escalabilidade fraca")
-d.set_xlabel("nós  (max_iter = 1500×workers)"); d.set_ylabel("Tempo (s)")
-d.set_xticks(nodes); d.set_ylim(0, 6.5); d.legend(fontsize=7.5, loc="lower left")
+for x_, y_ in zip(th, t_fraca):
+    d.annotate(f"{y_:.1f}s", (x_, y_), textcoords="offset points", xytext=(0, 6), fontsize=7)
+d.set_title("(d) Escalabilidade fraca (N4 n5)")
+d.set_xlabel("threads por trab. (max\\_iter = 1500$\\times$threads)")
+d.set_ylabel("Tempo (s)")
+d.set_xscale("log", base=2); d.set_xticks(th); d.set_xticklabels(th)
+d.set_ylim(0, 26); d.legend(fontsize=7.5, loc="upper left")
 
 fig.tight_layout(pad=0.5)
-out = "/Users/bernardozamin/Documents/Ultimo semestre/T4-ProgramacaoParalela/relatorio/graficos.pdf"
-import os; os.makedirs(os.path.dirname(out), exist_ok=True)
+out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "graficos.pdf")
 fig.savefig(out)
 print("salvo:", out)
