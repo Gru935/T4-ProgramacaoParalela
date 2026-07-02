@@ -113,12 +113,16 @@ Dedica um nó    & 4,04s \\ \bottomrule
 
 % ===================== SLIDE 3 -- CONCLUSAO =====================
 \begin{frame}{Conclusões}
-\begin{itemize}\setlength{\itemsep}{12pt}
-  \item A versão híbrida MPI + OpenMP foi implementada seguindo o modelo proposto, com Coordenador/Trabalhador entre as máquinas e \emph{workpool} sem mestre dentro da máquina, e sua correção se confirma pela saída idêntica à da versão sequencial.
-  \item A solução escala bem: speed-up de cerca de \textbf{46$\times$} em 64 núcleos, próximo do ideal até os núcleos físicos. A perda de eficiência aparece apenas na região de Hyper-Threading, como era esperado.
-  \item O híbrido teve desempenho equivalente ao da versão MPI pura, mas usando bem menos processos MPI, o que reduz memória e comunicação e tende a compensar em maior escala.
-  \item Na alocação do coordenador, o melhor é reservar apenas um núcleo para ele, nunca uma máquina inteira.
+No fim, a versão híbrida cumpriu o objetivo do trabalho e entregou bons resultados.
+\smallskip
+\begin{itemize}\setlength{\itemsep}{3pt}
+  \item Ficou \textbf{correta}: segue o modelo proposto (Coordenador/Trabalhador entre as máquinas e \emph{workpool} sem mestre dentro da máquina) e gera exatamente a mesma imagem da versão sequencial.
+  \item \textbf{Escalou bem}: chegamos a cerca de \textbf{46$\times$} de speed-up em 64 núcleos, quase o ideal. A única perda de eficiência é o limite físico do Hyper-Threading, não do nosso algoritmo.
+  \item \textbf{Valeu a pena ser híbrido}: mesmo empatando com a MPI pura, ele usa bem menos processos, gastando menos memória e comunicação, o que tende a compensar em escalas maiores.
+  \item E a análise mostrou que, para o coordenador, basta reservar \textbf{um núcleo}, nunca uma máquina inteira.
 \end{itemize}
+\smallskip
+Um bom exemplo prático de como combinar MPI e OpenMP num cluster.
 \end{frame}
 
 \end{document}
