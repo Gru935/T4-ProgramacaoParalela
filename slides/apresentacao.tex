@@ -76,7 +76,7 @@ Carga irregular $\Rightarrow$ \textbf{balanceamento dinâmico}. Rodado em \textb
 \toprule
 & \multicolumn{2}{c}{Híbrido} & \multicolumn{2}{c}{MPI pura} \\
 \cmidrule(lr){2-3}\cmidrule(lr){4-5}
-un. & $S$ & $E$ & $S$ & $E$ \\ \midrule
+proc. & $S$ & $E$ & $S$ & $E$ \\ \midrule
 4  & 4,26 & 1,06 & 2,97 & 0,74 \\
 8  & 8,49 & 1,06 & 6,92 & 0,86 \\
 16 & 15,9 & 0,99 & 14,3 & 0,90 \\
@@ -88,7 +88,7 @@ un. & $S$ & $E$ & $S$ & $E$ \\ \midrule
 \textbf{Fraca} (speed-up)\\[2pt]
 \begin{tabular}{r rr}
 \toprule
-un. & Híb. & MPI \\ \midrule
+proc. & Híb. & MPI \\ \midrule
 4  & 4,2  & 3,1 \\
 16 & 16,6 & 15,5 \\
 32 & 31,5 & 30,3 \\
@@ -108,7 +108,7 @@ Dedica um nó    & 4,04s \\ \bottomrule
 
 \vspace{3pt}
 {\color{primary}\rule{\textwidth}{0.4pt}}\\[2pt]
-{\scriptsize \textbf{un.} $=$ fluxos calculando em paralelo: \textbf{núcleos} no híbrido ($4$ trab.\ $\times$ threads) e \textbf{processos} na MPI pura. \quad \textbf{$S$} $=$ speed-up (vezes mais rápido). \quad \textbf{$E$} $=$ eficiência ($S\div$un.; $1{,}00 =$ ideal).}
+{\scriptsize \textbf{proc.} (processadores) $=$ \textbf{núcleos} no híbrido ($4$ trab.\ $\times$ threads) e \textbf{processos} na MPI pura. \quad \textbf{$S$} $=$ speed-up (vezes mais rápido). \quad \textbf{$E$} $=$ eficiência ($S\div$proc.; $1{,}00 =$ ideal).}
 \end{frame}
 
 % ===================== SLIDE 3 -- CONCLUSAO =====================

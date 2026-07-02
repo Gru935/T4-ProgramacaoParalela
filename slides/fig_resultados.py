@@ -28,7 +28,7 @@ fig.subplots_adjust(wspace=0.30, bottom=0.26, top=0.85)
 
 for ax in (a, b, d):
     ax.set_xscale("log", base=2); ax.set_xticks(ideal); ax.set_xticklabels(ideal)
-    ax.set_xlabel("unidades de cálculo")
+    ax.set_xlabel("nº de processadores")
 
 a.plot(ideal, ideal, "--", color="gray", lw=1, label="Ideal (linear)")
 a.plot(h_x, h_Sf, "o-", color="#2ca02c", label="Híbrido")
