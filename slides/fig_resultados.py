@@ -30,7 +30,6 @@ b = fig.add_subplot(gs[0, 1])
 d = fig.add_subplot(gs[1, :])
 
 for ax in (a, b):
-    ax.plot(ideal, ideal, "--", color="gray", lw=1, label="Ideal (linear)")
     ax.set_xscale("log", base=2); ax.set_xticks(ideal); ax.set_xticklabels(ideal)
     ax.set_xlabel("unidades de cálculo")
 
@@ -44,7 +43,6 @@ b.plot(m_x, m_Sw, "s-", color="#d62728", label="MPI pura")
 b.set_title("(b) Escalabilidade fraca (speed-up)"); b.set_ylabel("Speed-up escalado")
 b.legend(fontsize=7.5, loc="upper left")
 
-d.axhline(1.0, color="gray", ls="--", lw=1)
 d.plot(h_x, h_Ef, "o-", color="#2ca02c", label="Híbrido")
 d.plot(m_x, m_Ef, "s-", color="#d62728", label="MPI pura")
 d.set_xscale("log", base=2); d.set_xticks(ideal); d.set_xticklabels(ideal)
