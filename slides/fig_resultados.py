@@ -30,15 +30,18 @@ for ax in (a, b, d):
     ax.set_xscale("log", base=2); ax.set_xticks(ideal); ax.set_xticklabels(ideal)
     ax.set_xlabel("unidades de cálculo")
 
+a.plot(ideal, ideal, "--", color="gray", lw=1, label="Ideal (linear)")
 a.plot(h_x, h_Sf, "o-", color="#2ca02c", label="Híbrido")
 a.plot(m_x, m_Sf, "s-", color="#d62728", label="MPI pura")
 a.set_title("(a) Escalabilidade forte"); a.set_ylabel("Speed-up")
 a.legend(fontsize=8, loc="upper left")
 
+b.plot(ideal, ideal, "--", color="gray", lw=1)
 b.plot(h_x, h_Sw, "o-", color="#2ca02c")
 b.plot(m_x, m_Sw, "s-", color="#d62728")
 b.set_title("(b) Escalabilidade fraca (speed-up)"); b.set_ylabel("Speed-up escalado")
 
+d.axhline(1.0, color="gray", ls="--", lw=1)
 d.plot(h_x, h_Ef, "o-", color="#2ca02c")
 d.plot(m_x, m_Ef, "s-", color="#d62728")
 d.set_title("(c) Eficiência (forte)"); d.set_ylabel("Eficiência"); d.set_ylim(0, 1.25)
