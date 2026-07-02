@@ -110,10 +110,10 @@ Dedica um nó    & 4,04s \\ \bottomrule
 % ===================== SLIDE 3 -- CONCLUSAO =====================
 \begin{frame}{Conclusões}
 \begin{itemize}\setlength{\itemsep}{14pt}
-  \item A versão híbrida ficou \textbf{correta}: segue o modelo proposto (Coordenador/Trabalhador entre as máquinas e \emph{workpool} sem mestre dentro da máquina) e gera a mesma imagem da versão sequencial.
-  \item \textbf{Escalou bem}: cerca de \textbf{46$\times$} de speed-up em 64 núcleos; a única perda de eficiência é o limite do Hyper-Threading, não do algoritmo.
-  \item O híbrido \textbf{empatou com a MPI pura}, mas usando bem menos processos, com menos memória e comunicação.
-  \item Para o coordenador, o melhor é reservar \textbf{apenas um núcleo}, nunca uma máquina inteira.
+  \item A versão híbrida ficou correta: segue o modelo proposto (Coordenador/Trabalhador entre as máquinas e \emph{workpool} sem mestre dentro da máquina) e gera a mesma imagem da versão sequencial.
+  \item Escalou bem: cerca de 46$\times$ de speed-up em 64 núcleos; a única perda de eficiência é o limite do Hyper-Threading, não do algoritmo.
+  \item O híbrido empatou com a MPI pura, mas usando bem menos processos, com menos memória e comunicação.
+  \item Para o coordenador, o melhor é reservar apenas um núcleo, nunca uma máquina inteira.
 \end{itemize}
 \end{frame}
 
