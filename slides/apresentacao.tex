@@ -63,32 +63,26 @@ Carga \textbf{irregular} $\Rightarrow$ \textbf{balanceamento dinâmico}. Rodado 
 
 % ===================== SLIDE 2 -- GRAFICOS E TABELAS =====================
 \begin{frame}{Resultados}
-\begin{columns}[c]
-\begin{column}{0.56\textwidth}
 \centering
-\includegraphics[width=\linewidth]{graficos.pdf}
-\end{column}
-\begin{column}{0.44\textwidth}
-\centering\scriptsize
-\setlength{\tabcolsep}{4pt}
-\textbf{Escalabilidade forte} (speed-up $S$ / efic.\ $E$)\\[2pt]
+\includegraphics[width=0.95\linewidth]{graficos.pdf}\\[2pt]
+
+\scriptsize
+\setlength{\tabcolsep}{4pt}\renewcommand{\arraystretch}{0.88}
+\begin{minipage}[t]{0.40\linewidth}\centering
+\textbf{Escalabilidade forte}\\[2pt]
 \begin{tabular}{r rr rr}
 \toprule
 & \multicolumn{2}{c}{Híbrido} & \multicolumn{2}{c}{MPI pura} \\
 \cmidrule(lr){2-3}\cmidrule(lr){4-5}
 un. & $S$ & $E$ & $S$ & $E$ \\ \midrule
-1  & ---  & ---  & 1,00 & 1,00 \\
 4  & 4,26 & 1,06 & 2,97 & 0,74 \\
 8  & 8,49 & 1,06 & 6,92 & 0,86 \\
 16 & 15,9 & 0,99 & 14,3 & 0,90 \\
 32 & 28,1 & 0,88 & 28,1 & 0,88 \\
 64 & 46,3 & 0,72 & 44,1 & 0,69 \\ \bottomrule
 \end{tabular}
-
-\vspace{7pt}
-\setlength{\tabcolsep}{4pt}
-\begin{minipage}[t]{0.44\linewidth}
-\centering
+\end{minipage}\hfill
+\begin{minipage}[t]{0.24\linewidth}\centering
 \textbf{Fraca} (speed-up)\\[2pt]
 \begin{tabular}{r rr}
 \toprule
@@ -99,8 +93,7 @@ un. & Híb. & MPI \\ \midrule
 64 & 50,4 & 48,5 \\ \bottomrule
 \end{tabular}
 \end{minipage}\hfill
-\begin{minipage}[t]{0.54\linewidth}
-\centering
+\begin{minipage}[t]{0.31\linewidth}\centering
 \textbf{Coordenador} (4 nós)\\[2pt]
 \begin{tabular}{l r}
 \toprule
@@ -111,10 +104,9 @@ Dedica um nó    & 4,04s \\ \bottomrule
 \end{tabular}
 \end{minipage}
 
-\vspace{6pt}
-{\color{softgray}\scriptsize un.\ de cálculo $=$ núcleos (híbrido) / processos (MPI pura).}
-\end{column}
-\end{columns}
+\vspace{3pt}
+{\color{primary}\rule{\textwidth}{0.4pt}}\\[2pt]
+{\scriptsize \textbf{un.} $=$ fluxos calculando em paralelo: \textbf{núcleos} no híbrido ($4$ trab.\ $\times$ threads) e \textbf{processos} na MPI pura. \quad \textbf{$S$} $=$ speed-up (vezes mais rápido). \quad \textbf{$E$} $=$ eficiência ($S\div$un.; $1{,}00 =$ ideal).}
 \end{frame}
 
 % ===================== SLIDE 3 -- CONCLUSAO =====================

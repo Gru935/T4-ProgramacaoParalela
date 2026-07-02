@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Figura dos SLIDES (sem o painel do coordenador): forte, fraca e eficiencia.
+# Figura dos SLIDES em faixa (1x3): forte, fraca e eficiencia (sem coordenador).
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -23,32 +23,25 @@ plt.rcParams.update({"font.size": 9, "axes.grid": True, "grid.alpha": 0.35,
                      "axes.axisbelow": True})
 ideal = [1, 4, 8, 16, 32, 64]
 
-fig = plt.figure(figsize=(7.4, 5.0))
-gs = fig.add_gridspec(2, 2, hspace=0.55, wspace=0.30)
-a = fig.add_subplot(gs[0, 0])
-b = fig.add_subplot(gs[0, 1])
-d = fig.add_subplot(gs[1, :])
+fig, (a, b, d) = plt.subplots(1, 3, figsize=(11.5, 2.2))
+fig.subplots_adjust(wspace=0.30, bottom=0.26, top=0.85)
 
-for ax in (a, b):
+for ax in (a, b, d):
     ax.set_xscale("log", base=2); ax.set_xticks(ideal); ax.set_xticklabels(ideal)
     ax.set_xlabel("unidades de cálculo")
 
 a.plot(h_x, h_Sf, "o-", color="#2ca02c", label="Híbrido")
 a.plot(m_x, m_Sf, "s-", color="#d62728", label="MPI pura")
 a.set_title("(a) Escalabilidade forte"); a.set_ylabel("Speed-up")
-a.legend(fontsize=7.5, loc="upper left")
+a.legend(fontsize=8, loc="upper left")
 
-b.plot(h_x, h_Sw, "o-", color="#2ca02c", label="Híbrido")
-b.plot(m_x, m_Sw, "s-", color="#d62728", label="MPI pura")
+b.plot(h_x, h_Sw, "o-", color="#2ca02c")
+b.plot(m_x, m_Sw, "s-", color="#d62728")
 b.set_title("(b) Escalabilidade fraca (speed-up)"); b.set_ylabel("Speed-up escalado")
-b.legend(fontsize=7.5, loc="upper left")
 
-d.plot(h_x, h_Ef, "o-", color="#2ca02c", label="Híbrido")
-d.plot(m_x, m_Ef, "s-", color="#d62728", label="MPI pura")
-d.set_xscale("log", base=2); d.set_xticks(ideal); d.set_xticklabels(ideal)
-d.set_title("(c) Eficiência (forte)"); d.set_xlabel("unidades de cálculo")
-d.set_ylabel("Eficiência"); d.set_ylim(0, 1.25)
-d.legend(fontsize=7.5, loc="lower left", ncol=2)
+d.plot(h_x, h_Ef, "o-", color="#2ca02c")
+d.plot(m_x, m_Ef, "s-", color="#d62728")
+d.set_title("(c) Eficiência (forte)"); d.set_ylabel("Eficiência"); d.set_ylim(0, 1.25)
 
 fig.savefig(os.path.join(OUT, "graficos.pdf"), bbox_inches="tight")
-print("slides/graficos.pdf regenerado (3 paineis, sem coordenador)")
+print("slides/graficos.pdf regenerado (faixa 1x3, sem coordenador)")
