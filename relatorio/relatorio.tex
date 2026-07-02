@@ -24,7 +24,7 @@
   morekeywords={omp,pragma}}
 
 \setlength{\parindent}{0pt}
-\setlength{\parskip}{3pt}
+\setlength{\parskip}{2pt}
 \pagestyle{plain}
 \begin{document}
 
@@ -48,7 +48,7 @@ Implementa-se, em C, a versão \textbf{híbrida MPI + OpenMP} do cálculo do \te
 Cada bloco é processado por uma \textbf{região paralela} (\texttt{\#pragma omp parallel}). O controle está numa \textbf{estrutura de dados compartilhada} \texttt{WorkPool\{next,total\}}: \textbf{todas as threads} executam o mesmo laço e \textbf{retiram atomicamente} a próxima linha (\texttt{\#pragma omp atomic capture}) até esvaziar o pool --- \textbf{sem thread mestre}, com escalonamento \emph{self-service} emergindo da estrutura de dados. A granularidade é de \textbf{uma linha} (7680 px). Usa-se \texttt{MPI\_Init\_thread} (\texttt{MPI\_THREAD\_FUNNELED}) e \texttt{OMP\_NUM\_THREADS} de 1 a 16 (até 2 threads por núcleo, HT).
 
 \section*{4. Alocação do coordenador}
-O coordenador só distribui/coleta, ficando \textbf{quase ocioso}. Por isso adota-se \textbf{sempre} a alocação \texttt{-N 4 -n 5}: 4 nós, \textbf{1 coordenador + 4 trabalhadores}, com o coordenador \emph{compartilhando} o nó 0 (\textbf{sem dedicar um nó a ele}). Como comparação, mede-se também a alocação \emph{dedicada} \texttt{-N 4 -n 4} (coordenador sozinho num nó, só 3 trabalhadores).
+O coordenador só distribui/coleta, ficando \textbf{quase ocioso}. Adota-se \textbf{sempre} \texttt{-N 4 -n 5}: 4 nós, \textbf{1 coordenador + 4 trabalhadores}; o SLURM coloca o coordenador (\texttt{rank 0}) e um trabalhador (\texttt{rank 1}) \emph{no mesmo nó} (confirmado: ambos em \texttt{atlantica05}). Comparam-se três alocações: (i) \textbf{dedicar 1 núcleo} (nó 0 usa 15 threads, 1 núcleo livre p/ o coordenador); (ii) \textbf{não dedicar} (nó 0 usa 16 threads, compartilhando); (iii) \textbf{dedicar um nó} (\texttt{-N 4 -n 4}, 3 trabalhadores).
 
 \section*{5. Metodologia}
 4 nós da Atlantica (LAD), SLURM, Xeon E5520, \textbf{16 CPUs lógicas/nó} (8 núcleos $\times$ 2 HT). \texttt{ladcomp -env mpicc -O3 -fopenmp}. Tempo por \texttt{MPI\_Wtime} \emph{antes} do I/O. Baseline $T(1)=93{,}19$\,s (sequencial, \texttt{max\_iter}=2000). O híbrido roda \textbf{sempre em \texttt{-N 4 -n 5}} e a escala se dá pelo \textbf{nº de threads por trabalhador} (\texttt{OMP\_NUM\_THREADS} $\in\{1,2,4,8,16\}$, ou seja \textbf{4 a 64 núcleos} de cálculo = 4 trab.\ $\times$ threads). \textbf{Forte}: \texttt{max\_iter}=2000 fixo. \textbf{Fraca}: \texttt{max\_iter}=1500$\times$threads (carga por núcleo constante). Speed-up$\,=T(1)/T(p)$; Eficiência$\,=$Speed-up$/p$, $p=4\times$threads. MPI pura: 1 processo por unidade (32 = 1/núcleo; 64 = 2/núcleo, HT). Saída \textbf{byte-idêntica} à sequencial (\texttt{md5}).
@@ -58,12 +58,12 @@ O coordenador só distribui/coleta, ficando \textbf{quase ocioso}. Por isso adot
 
 \textbf{Híbrido $\times$ MPI pura (Tab.\,3, Fig.\,b).} Na mesma alocação de 4 nós, o híbrido \textbf{praticamente empata} com a MPI pura: em 64 unidades, \textbf{2,01\,s (46,3$\times$)} vs 2,00\,s (46,5$\times$); em 32 unidades, 3,31\,s vs 3,20\,s. Distribuir por \emph{threads} (híbrido) ou por \emph{processos} (MPI pura) rende igual neste problema \emph{compute-bound} --- mas o híbrido usa \textbf{muito menos ranks} MPI (5 vs 64) e menos memória/mensagens, vantagem que cresce com a escala.
 
-\textbf{Alocação do coordenador (Tab.\,4, Fig.\,c).} Dedicar um nó inteiro ao coordenador ocioso (\texttt{n4}, 3 trabalhadores) desperdiça 1/4 da máquina: 2,96\,s. \emph{Compartilhar} seu nó (\texttt{n5}, 4 trabalhadores) usa os 4 nós e cai para \textbf{2,01\,s --- 32\% mais rápido}. Por isso a alocação padrão é \texttt{n5}.
+\textbf{Alocação do coordenador (Tab.\,4, Fig.\,c).} \emph{Dedicar 1 núcleo} ao coordenador (nó 0 com 15 threads) é \textbf{$\approx$16\% mais rápido} que \emph{não dedicar} (2,09 vs 2,48\,s): com 16 threads + coordenador o nó 0 fica \emph{oversubscrito} (17 fluxos em 16 CPUs), e reservar 1 núcleo elimina essa contenção. Já \emph{dedicar um nó inteiro} (\texttt{n4}) é o pior caso (\textbf{4,04\,s}), pois desperdiça 1/4 da máquina. Ou seja: compensa dedicar 1 \emph{núcleo}, mas nunca um \emph{nó}.
 
 \textbf{Escalabilidade fraca (Tab.\,2, Fig.\,d).} Com a carga proporcional às threads (\texttt{max\_iter}=1500$\times$threads), o tempo fica \textbf{praticamente constante} até 32 núcleos (16,6$\to$17,7\,s, eficiência \textbf{0,94}) e sobe a 22,2\,s em 64 (0,75), de novo pela região de HT. Ou seja, escalabilidade fraca quase ideal na faixa de núcleos físicos.
 
 \section*{7. Conclusão}
-A versão cumpre o modelo: \textbf{MPI Coordenador/Trabalhador} (um processo por nó) + \textbf{workpool OpenMP sem mestre}. Seguindo a metodologia de \texttt{-N 4 -n 5} escalando as threads, o híbrido atinge \textbf{46,3$\times$} (64 núcleos), \textbf{empatado com a MPI pura}, com escalabilidade fraca quase ideal até os núcleos físicos. \textbf{Compartilhar o nó do coordenador (\texttt{n5}) é 32\% melhor que dedicá-lo (\texttt{n4})}. A eficiência cai na região de Hyper-Threading, como esperado.
+A versão cumpre o modelo (\textbf{MPI Coordenador/Trabalhador}, 1 processo/nó + \textbf{workpool OpenMP sem mestre}). Escalando as threads em \texttt{-N 4 -n 5}, atinge \textbf{46,3$\times$} (64 núcleos), \textbf{empatado com a MPI pura}. \textbf{Vale dedicar 1 \emph{núcleo} ao coordenador} ($\approx$16\% mais rápido), mas \textbf{nunca um \emph{nó}} (\texttt{n4}: +63\%). A queda de eficiência é o limite do Hyper-Threading, não do algoritmo.
 
 \end{multicols}
 
@@ -111,16 +111,17 @@ MPI pura (1 proc/núcleo)   & 32 processos & 3,20          & 29,1 \\ \bottomrule
 
 \vspace{3pt}
 \begin{center}
-\textbf{Tabela 4 --- Alocação do coordenador (4 nós, 16 threads/trab.)}\\[3pt]
-\begin{tabular}{lrrrr}
+\textbf{Tabela 4 --- Alocação do coordenador (4 nós; lote controlado)}\\[3pt]
+\begin{tabular}{lrr}
 \toprule
-Alocação & Proc. & Trab. & Tempo (s) & Speed-up \\ \midrule
-\emph{Compartilhado} (\texttt{-N 4 -n 5}) & 5 & 4 & \textbf{2,01} & \textbf{46,3} \\
-\emph{Dedicado} (\texttt{-N 4 -n 4})      & 4 & 3 & 2,96          & 31,5 \\ \bottomrule
+Alocação do coordenador & Tempo (s) & vs.\ não dedicar \\ \midrule
+\emph{Dedica 1 núcleo} (\texttt{n5}, nó 0 = 15 th) & \textbf{2,09} & \textbf{$-$16\%} \\
+\emph{Não dedica} (\texttt{n5}, nó 0 = 16 th)      & 2,48          & --- \\
+\emph{Dedica um nó} (\texttt{n4}, 3 trabalhadores) & 4,04          & $+$63\% \\ \bottomrule
 \end{tabular}
 \end{center}
 
-{\small $T(1)=93{,}19$\,s (sequencial, 1 núcleo, \texttt{max\_iter}=2000); Speed-up$\,=T(1)/T(p)$; Eficiência$\,=$Speed-up$/p$, com $p=4\times$threads (núcleos de cálculo = 4 trabalhadores $\times$ threads). Imagem 7680$\times$4320. Escalabilidade fraca: eficiência $=T(\text{1 thread})/T(p)$.}
+{\small $T(1)=93{,}19$\,s (sequencial, 1 núcleo, \texttt{max\_iter}=2000); Speed-up$\,=T(1)/T(p)$, Eficiência$\,=$Speed-up$/p$, $p=4\times$threads. Na fraca, eficiência $=T(1\,\text{thread})/T(p)$, onde $T(1\,\text{thread})$ é a config \texttt{-N 4 -n 5} com 1 thread/trab.\ (4 núcleos), \emph{não} execução serial. A Tab.\,4 é um lote controlado à parte: o cluster é compartilhado e tem variância entre execuções, então nela comparam-se as \emph{razões}, não os absolutos com a Tab.\,1. Imagem 7680$\times$4320.}
 
 \vspace{5pt}
 \begin{center}

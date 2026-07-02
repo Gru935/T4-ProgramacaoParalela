@@ -1,0 +1,236 @@
+\documentclass[aspectratio=169,10pt]{beamer}
+\usetheme{Madrid}
+\usecolortheme{default}
+\setbeamertemplate{navigation symbols}{}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[brazil]{babel}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{tikz}
+
+\definecolor{cmt}{rgb}{0.0,0.5,0.0}
+\definecolor{kw}{rgb}{0.0,0.0,0.7}
+\lstset{language=C, basicstyle=\ttfamily\scriptsize, keywordstyle=\color{kw}\bfseries,
+  commentstyle=\color{cmt}\itshape, showstringspaces=false, morekeywords={omp,pragma}}
+
+\title[Mandelbrot híbrido MPI+OpenMP]{Cálculo Paralelo do Conjunto de Mandelbrot}
+\subtitle{Versão Híbrida MPI + OpenMP --- Trabalho 4}
+\author[Zamin \& Cunha]{Bernardo Luiz Padilha Zamin \and João Pedro Sostruznik Sotero da Cunha}
+\institute[PUCRS]{Programação Paralela --- PUCRS, Escola Politécnica}
+\date{2026}
+
+\begin{document}
+
+\begin{frame}[plain]\titlepage\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}{O problema}
+\begin{columns}[T]
+\begin{column}{0.54\textwidth}
+\textbf{Conjunto de Mandelbrot} --- imagem \textbf{7680$\times$4320} (33 MP).\\[4pt]
+Para cada pixel $c$: itera-se $z \leftarrow z^2 + c$ até $|z|>2$ ou atingir \texttt{max\_iter}.
+\begin{itemize}
+  \item Pontos \textbf{internos} ao conjunto $\Rightarrow$ custam \texttt{max\_iter} iterações.
+  \item Pontos \textbf{externos} $\Rightarrow$ escapam cedo.
+\end{itemize}
+\vspace{4pt}
+$\Rightarrow$ \textbf{carga altamente irregular} entre pixels/linhas.\\
+$\Rightarrow$ exige \textbf{balanceamento dinâmico} (não dá para dividir igualmente).
+\end{column}
+\begin{column}{0.44\textwidth}
+\centering
+\includegraphics[width=\linewidth]{fig_mandel.png}\\
+{\scriptsize Cor = nº de iterações até escapar.}
+\end{column}
+\end{columns}
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}{Objetivo: dois níveis de paralelismo}
+\textbf{Versão híbrida MPI + OpenMP}, escalando em \textbf{4 nós} do cluster Atlantica.
+\vspace{6pt}
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+\begin{block}{Nível 1 --- entre nós (MPI)}
+Memória \textbf{distribuída}. Distribui blocos de linhas da imagem entre os nós.\\
+\textbf{Um processo pesado MPI por nó.}
+\end{block}
+\end{column}
+\begin{column}{0.5\textwidth}
+\begin{block}{Nível 2 --- dentro do nó (OpenMP)}
+Memória \textbf{compartilhada}. Várias threads calculam as linhas do bloco.\\
+\textbf{Workpool sem mestre.}
+\end{block}
+\end{column}
+\end{columns}
+\vspace{4pt}
+\centering\footnotesize
+\colorbox{blue!10}{\texttt{Coordenador (rank 0)}} $\;\longrightarrow\;$ blocos de linhas sob demanda $\;\longrightarrow\;$
+\colorbox{green!10}{\texttt{4 trabalhadores (16 threads cada)}}
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}{Nível 1 --- MPI: Coordenador / Trabalhador}
+\begin{itemize}
+  \item \textbf{Coordenador} (\texttt{rank 0}): guarda a imagem e distribui \textbf{blocos de linhas sob demanda}.
+  \item \textbf{Trabalhador}: toma a iniciativa
+  \begin{enumerate}
+    \item pede trabalho (\texttt{TAG\_REQUEST});
+    \item recebe um bloco (\texttt{TAG\_TASK}) ou o fim (\texttt{TAG\_STOP});
+    \item calcula e devolve o resultado (\texttt{TAG\_RESULT}).
+  \end{enumerate}
+  \item \textbf{Balanceamento natural}: quem termina antes pede mais $\Rightarrow$ ninguém fica ocioso, mesmo com a carga irregular.
+  \item Reaproveita \emph{exatamente} o modelo Coordenador/Trabalhador da versão MPI pura.
+\end{itemize}
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}[fragile]{Nível 2 --- OpenMP: workpool \emph{sem mestre}}
+\textbf{Todas as threads trabalham}; o controle está numa \textbf{estrutura de dados} compartilhada (não há thread mestre).
+\begin{lstlisting}
+typedef struct { int next; int total; } WorkPool;   // estrutura compartilhada
+
+WorkPool pool = { .next = 0, .total = task->num_rows };
+#pragma omp parallel                        // TODAS as threads entram
+{
+    while (1) {
+        int row;
+        #pragma omp atomic capture          // retira a proxima linha
+        { row = pool.next; pool.next++; }   //   ... atomicamente
+        if (row >= pool.total) break;       // pool vazio -> termina
+        /* ... calcula os 7680 pixels da linha 'row' ... */
+    }
+}
+\end{lstlisting}
+\vspace{-4pt}
+Granularidade de \textbf{1 linha}; \texttt{OMP\_NUM\_THREADS=16} (2 threads por núcleo físico, HT).
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}{Metodologia (cluster Atlantica)}
+\begin{itemize}
+  \item 4 nós, Intel Xeon E5520, \textbf{16 CPUs lógicas/nó} (8 núcleos $\times$ 2 HT).
+  \item Híbrido roda \textbf{sempre em \texttt{-N 4 -n 5}}: 1 coordenador + 4 trabalhadores (coordenador \emph{compartilha} o nó 0).
+  \item Escala-se pelo \textbf{nº de threads} por trabalhador: $1 \to 16$ \;($\Rightarrow$ $4 \to 64$ núcleos de cálculo).
+  \item \textbf{Forte}: \texttt{max\_iter}=2000 fixo. \quad \textbf{Fraca}: \texttt{max\_iter} $= 1500\times$threads.
+  \item Tempo com \texttt{MPI\_Wtime} (antes do I/O). Baseline $T(1)=93{,}19$\,s.
+  \item Speed-up $S=T(1)/T(p)$, \; Eficiência $E=S/p$, \; $p=4\times$threads.
+  \item \textbf{Correção}: saída \textbf{byte-idêntica} à da versão sequencial (mesmo \texttt{md5}).
+\end{itemize}
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}{Escalabilidade forte}
+\begin{columns}[c]
+\begin{column}{0.55\textwidth}
+\includegraphics[width=\linewidth]{fig_forte.pdf}
+\end{column}
+\begin{column}{0.45\textwidth}
+\textbf{Speed-up de 4,3$\times$ a 46$\times$} (4 $\to$ 64 núcleos).
+\begin{itemize}
+  \item Até 16 núcleos: \textbf{quase ideal} --- o workpool mantém todas as threads ocupadas.
+  \item \emph{Superlinear} no início (E$>$1): subvetor menor por núcleo $\Rightarrow$ melhor uso de \textbf{cache}.
+  \item Ganhos diminuem além dos núcleos físicos (próximo slide).
+\end{itemize}
+\end{column}
+\end{columns}
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}{Por que a eficiência cai? Hyper-Threading}
+\begin{columns}[c]
+\begin{column}{0.55\textwidth}
+\includegraphics[width=\linewidth]{fig_efic.pdf}
+\end{column}
+\begin{column}{0.45\textwidth}
+Eficiência: $1{,}06 \to 0{,}99 \to 0{,}88 \to \mathbf{0{,}72}$.
+\begin{itemize}
+  \item \textbf{32 núcleos} = 8 threads/nó = \emph{todos os núcleos físicos}: contenção de banda de memória.
+  \item \textbf{64 núcleos} = 16 threads/nó = \textbf{Hyper-Threading} (2 threads/núcleo) --- HT \emph{não dobra} o desempenho.
+\end{itemize}
+$\Rightarrow$ o platô é \textbf{esperado}: é o limite físico da máquina, não do algoritmo.
+\end{column}
+\end{columns}
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}{Alocação do coordenador: dedicar um núcleo?}
+\begin{columns}[c]
+\begin{column}{0.55\textwidth}
+\includegraphics[width=\linewidth]{fig_coord.pdf}
+\end{column}
+\begin{column}{0.45\textwidth}
+Coordenador \textbf{quase ocioso}, compartilha o nó 0 com um worker. \emph{Onde alocá-lo?}
+\begin{itemize}
+  \item \textbf{Dedicar 1 núcleo} (worker do nó 0 usa 15 threads): \textbf{2,09\,s}.
+  \item \textbf{Não dedicar} (16 threads + coordenador): 2,48\,s --- \emph{oversubscrição} do nó.
+  \item \textbf{Dedicar um nó} (\texttt{n4}): \textbf{4,04\,s} --- só 3 workers.
+\end{itemize}
+$\Rightarrow$ vale dedicar 1 \textbf{núcleo} ($-16\%$), \textbf{nunca um nó} ($+63\%$).
+\end{column}
+\end{columns}
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}{Híbrido $\times$ MPI pura}
+\begin{columns}[c]
+\begin{column}{0.55\textwidth}
+\includegraphics[width=\linewidth]{fig_hibxmpi.pdf}
+\end{column}
+\begin{column}{0.45\textwidth}
+Mesma alocação (4 nós):
+\begin{itemize}
+  \item 64 unidades: \textbf{2,01\,s} (híbrido) vs \textbf{2,00\,s} (MPI pura) --- \textbf{empate técnico}.
+\end{itemize}
+\textbf{Por quê?} Problema \emph{compute-bound} e independente: distribuir por \emph{threads} ou por \emph{processos} rende igual.
+\vspace{4pt}
+
+\textbf{Vantagem do híbrido}: 5 ranks MPI vs 64 $\Rightarrow$ menos memória e mensagens (cresce com a escala).
+\end{column}
+\end{columns}
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}{Escalabilidade fraca}
+\begin{columns}[c]
+\begin{column}{0.55\textwidth}
+\includegraphics[width=\linewidth]{fig_fraca.pdf}
+\end{column}
+\begin{column}{0.45\textwidth}
+Carga $\propto$ threads $\Rightarrow$ tempo deveria ser \textbf{constante}.
+\begin{itemize}
+  \item Até 32 núcleos: $16{,}6 \to 17{,}7$\,s, eficiência \textbf{0,94} --- quase ideal.
+  \item 64 núcleos: sobe a 22\,s (0,75) --- de novo o Hyper-Threading.
+\end{itemize}
+Confirma o bom balanceamento do \textbf{workpool} + distribuição MPI sob demanda.
+\end{column}
+\end{columns}
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}{Conclusões}
+\begin{itemize}
+  \item Cumprimos o modelo pedido: \textbf{MPI Coordenador/Trabalhador} (1 processo pesado/nó) + \textbf{workpool OpenMP sem mestre} (controle por estrutura de dados, 2 threads/núcleo com HT).
+  \item \textbf{46$\times$} de speed-up em 64 núcleos; escalabilidade \textbf{fraca quase ideal} até os núcleos físicos.
+  \item A queda de eficiência é o \textbf{limite do Hyper-Threading}, não do algoritmo.
+  \item Coordenador: vale dedicar \textbf{1 núcleo} ($-16\%$, evita oversubscrição), \textbf{nunca um nó} inteiro ($+63\%$).
+  \item Híbrido \textbf{empata} com a MPI pura, usando \textbf{muito menos ranks} --- vantagem em escala.
+\end{itemize}
+\vspace{6pt}
+\centering\small Saída validada \textbf{byte-idêntica} à sequencial. Código, relatório e dados no repositório.
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}[plain]
+\centering
+\vfill
+{\Large\bfseries Obrigado!}\\[6pt]
+{\large Perguntas?}\\[10pt]
+\footnotesize Bernardo Zamin \; \textbullet \; João Pedro Cunha \quad|\quad Programação Paralela --- PUCRS
+\vfill
+\end{frame}
+
+\end{document}

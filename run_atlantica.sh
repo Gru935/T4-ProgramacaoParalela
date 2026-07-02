@@ -69,13 +69,19 @@ for N in 2 3 4; do
   emit "forte_mpi_core,mpi,$N,$np,1,$MAXITER,-,$t"
 done
 
-# ---------- alocacao do COORDENADOR (4 nos) ----------
-# dedicado: 1 coord + 3 workers (no do coordenador fica ocioso)
-t=$(OMP_NUM_THREADS=16 srun --exclusive -N 4 -n 4 -c 16 ./mandelbrot-hib $MAXITER $ROWS | gt)
-emit "coord_dedicado,hib,4,4,16,$MAXITER,$ROWS,$t"
-# nao dedicado: 1 coord + 4 workers (coordenador divide o no 0 com um worker)
+# ---------- alocacao do COORDENADOR (4 nos) -- granularidade de NUCLEO ----------
+# Placement: com -N 4 -n 5, o SLURM coloca ranks 0 (coordenador) e 1 (worker) no
+# MESMO no; confirme com:  srun --exclusive -N 4 -n 5 --overcommit --label hostname
+# (i) DEDICA 1 NUCLEO ao coordenador: worker do no 0 (rank 1) usa 15 threads
+#     (via omp_by_rank.sh), deixando 1 nucleo livre para o coordenador.
+t=$(srun --exclusive -N 4 -n 5 --overcommit ./omp_by_rank.sh $MAXITER $ROWS | gt)
+emit "coord_dedica_nucleo,hib,4,5,15,$MAXITER,$ROWS,$t"
+# (ii) NAO DEDICA: todos os workers com 16 threads (coordenador compartilha o no 0)
 t=$(OMP_NUM_THREADS=16 srun --exclusive -N 4 -n 5 --overcommit ./mandelbrot-hib $MAXITER $ROWS | gt)
-emit "coord_compartilhado,hib,4,5,16,$MAXITER,$ROWS,$t"
+emit "coord_nao_dedica,hib,4,5,16,$MAXITER,$ROWS,$t"
+# (iii) DEDICA UM NO inteiro ao coordenador: n4, so 3 workers
+t=$(OMP_NUM_THREADS=16 srun --exclusive -N 4 -n 4 -c 16 ./mandelbrot-hib $MAXITER $ROWS | gt)
+emit "coord_dedica_no,hib,4,4,16,$MAXITER,$ROWS,$t"
 
 # ---------- escalabilidade FRACA: HIBRIDO -N 4 -n 5, carga proporcional as threads
 # Carga por nucleo constante: max_iter = WEAK_BASE * threads.

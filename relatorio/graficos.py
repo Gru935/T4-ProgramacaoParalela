@@ -22,9 +22,12 @@ units    = [32, 64]
 S_hib_c  = [SEQ / 3.314190, SEQ / 2.012548]   # hibrido: 8 e 16 threads/worker
 S_mpi_c  = [SEQ / 3.203527, SEQ / 2.002144]   # MPI pura: 32 e 64 processos
 
-# --- Alocacao do coordenador (4 nos, 16 threads) ---
-coord_lbl = ["Dedicado (n4)\n3 trabalhadores", "Compartilhado (n5)\n4 trabalhadores"]
-coord_t   = [2.962407, 2.012548]
+# --- Alocacao do coordenador (4 nos; lote controlado, mesmo experimento) ---
+# n5 = coordenador compartilha o no 0; nucleo = worker do no 0 usa 15 threads
+# (1 core dedicado ao coordenador). n4 = coordenador ocupa um no inteiro.
+coord_lbl = ["Dedica\n1 núcleo\n(n5)", "Não dedica\n(n5)", "Dedica\num nó\n(n4)"]
+coord_t   = [2.090397, 2.478364, 4.038376]
+coord_col = ["#17becf", "#9467bd", "#d62728"]
 
 # --- Escalabilidade FRACA: N4 n5, carga proporcional as threads ---
 t_fraca = [16.594238, 16.339467, 16.879343, 17.745419, 22.178566]
@@ -58,16 +61,16 @@ b.set_xlabel("unidades de cálculo (threads / processos)"); b.set_ylabel("Speed-
 b.set_xticks(x); b.set_xticklabels(["32", "64"]); b.set_ylim(0, 56)
 b.legend(fontsize=7.5, loc="upper left")
 
-# (c) Alocacao do coordenador
+# (c) Alocacao do coordenador (dedicar 1 nucleo vs nao vs dedicar um no)
 c = ax[1, 0]
-bars = c.bar(coord_lbl, coord_t, color=["#9467bd", "#17becf"], width=0.55)
+bars = c.bar(coord_lbl, coord_t, color=coord_col, width=0.62)
 for r, v in zip(bars, coord_t):
-    c.text(r.get_x() + r.get_width()/2, v + 0.05, f"{v:.2f}s", ha="center", fontsize=8)
-c.set_title("(c) Alocação do coordenador (4 nós, 16 threads)")
-c.set_ylabel("Tempo (s)"); c.set_ylim(0, 3.6)
-c.annotate("$-$32%", xy=(1, 2.01), xytext=(1, 3.15), ha="center", color="green",
-           fontsize=9, fontweight="bold",
-           arrowprops=dict(arrowstyle="->", color="green", lw=1.3))
+    c.text(r.get_x() + r.get_width()/2, v + 0.06, f"{v:.2f}s", ha="center", fontsize=8)
+c.set_title("(c) Alocação do coordenador")
+c.set_ylabel("Tempo (s)"); c.set_ylim(0, 4.7)
+c.annotate("$-$16%", xy=(0, 2.09), xytext=(0, 3.1), ha="center", color="green",
+           fontsize=8.5, fontweight="bold",
+           arrowprops=dict(arrowstyle="->", color="green", lw=1.2))
 
 # (d) FRACA: tempo x threads (N4 n5, carga proporcional)
 d = ax[1, 1]

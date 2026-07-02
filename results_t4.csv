@@ -29,3 +29,6 @@ fraca_threads,hib,4,5,2,3000,64,16.339467
 fraca_threads,hib,4,5,4,6000,64,16.879343
 fraca_threads,hib,4,5,8,12000,64,17.745419
 fraca_threads,hib,4,5,16,24000,64,22.178566
+coord_dedica_nucleo,hib,4,5,15,2000,64,2.090397
+coord_nao_dedica,hib,4,5,16,2000,64,2.478364
+coord_dedica_no,hib,4,4,16,2000,64,4.038376

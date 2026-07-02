@@ -44,7 +44,7 @@ Argumentos: `mandelbrot-hib <max_iter> [linhas_por_tarefa]`.
 Threads via `OMP_NUM_THREADS` (1 por núcleo, 2 por núcleo com HT).
 
 Cada nó do Atlantica tem **16 CPUs lógicas = 8 núcleos × 2 HT**, logo o híbrido usa
-`OMP_NUM_THREADS=16` (uma thread por núcleo lógico).
+`OMP_NUM_THREADS=16` (**2 threads por núcleo físico** — Hyper-Threading).
 
 ```bash
 # Atlantica (SLURM) — híbrido SEMPRE em -N 4 -n 5 (4 nós, 1 coordenador + 4
@@ -96,11 +96,13 @@ com `T(1)=93,19 s` (sequencial). O `run_atlantica.sh` coleta tudo em `results_t4
 2. **Escalabilidade fraca** — carga por núcleo constante: `max_iter = 1500 × threads`.
    Ideal: tempo constante; `E = T(1 thread)/T(p)`.
 
-3. **Alocação do coordenador** — comparar (16 threads/trab.):
-   - *compartilhado* (`-N 4 -n 5`, padrão): coordenador divide o nó 0 com um
-     trabalhador → 4 nós computando;
-   - *dedicado* (`-N 4 -n 4`): coordenador sozinho num nó → só 3 trabalhadores
-     (o nó do coordenador fica quase ocioso). Dedicar custa ~32% de desempenho.
+3. **Alocação do coordenador** — granularidade de **núcleo** (via `omp_by_rank.sh`).
+   Com `-N 4 -n 5` o coordenador (rank 0) e um worker (rank 1) ficam no mesmo nó:
+   - *dedica 1 núcleo*: worker do nó 0 usa **15** threads → 1 núcleo livre p/ o
+     coordenador (evita oversubscrição) — **melhor**, ~16% mais rápido;
+   - *não dedica*: worker do nó 0 usa 16 threads → coordenador compartilha;
+   - *dedica um nó* (`-N 4 -n 4`): coordenador sozinho num nó, só 3 trabalhadores
+     — **pior** (+63%, desperdiça 1/4 da máquina).
 
 4. **Híbrido × MPI puro** — em 4 nós, híbrido (32/64 threads) vs MPI puro
    (1 processo pesado por core = 32; ou dois por core com HT = 64).
