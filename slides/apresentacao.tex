@@ -105,24 +105,16 @@ Não dedica      & 2,48s \\
 Dedica um nó    & 4,04s \\ \bottomrule
 \end{tabular}
 \end{minipage}
-
-\vspace{3pt}
-{\color{primary}\rule{\textwidth}{0.4pt}}\\[2pt]
-{\scriptsize \textbf{proc.} (processadores) $=$ \textbf{núcleos} no híbrido ($4$ trab.\ $\times$ threads) e \textbf{processos} na MPI pura. \quad \textbf{$S$} $=$ speed-up (vezes mais rápido). \quad \textbf{$E$} $=$ eficiência ($S\div$proc.; $1{,}00 =$ ideal).}
 \end{frame}
 
 % ===================== SLIDE 3 -- CONCLUSAO =====================
 \begin{frame}{Conclusões}
-No fim, a versão híbrida cumpriu o objetivo do trabalho e entregou bons resultados.
-\smallskip
-\begin{itemize}\setlength{\itemsep}{3pt}
-  \item Ficou \textbf{correta}: segue o modelo proposto (Coordenador/Trabalhador entre as máquinas e \emph{workpool} sem mestre dentro da máquina) e gera exatamente a mesma imagem da versão sequencial.
-  \item \textbf{Escalou bem}: chegamos a cerca de \textbf{46$\times$} de speed-up em 64 núcleos, quase o ideal. A única perda de eficiência é o limite físico do Hyper-Threading, não do nosso algoritmo.
-  \item \textbf{Valeu a pena ser híbrido}: mesmo empatando com a MPI pura, ele usa bem menos processos, gastando menos memória e comunicação, o que tende a compensar em escalas maiores.
-  \item E a análise mostrou que, para o coordenador, basta reservar \textbf{um núcleo}, nunca uma máquina inteira.
+\begin{itemize}\setlength{\itemsep}{14pt}
+  \item A versão híbrida ficou \textbf{correta}: segue o modelo proposto (Coordenador/Trabalhador entre as máquinas e \emph{workpool} sem mestre dentro da máquina) e gera a mesma imagem da versão sequencial.
+  \item \textbf{Escalou bem}: cerca de \textbf{46$\times$} de speed-up em 64 núcleos; a única perda de eficiência é o limite do Hyper-Threading, não do algoritmo.
+  \item O híbrido \textbf{empatou com a MPI pura}, mas usando bem menos processos, com menos memória e comunicação.
+  \item Para o coordenador, o melhor é reservar \textbf{apenas um núcleo}, nunca uma máquina inteira.
 \end{itemize}
-\smallskip
-Um bom exemplo prático de como combinar MPI e OpenMP num cluster.
 \end{frame}
 
 \end{document}
