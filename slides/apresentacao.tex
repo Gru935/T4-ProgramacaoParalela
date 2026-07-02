@@ -129,11 +129,11 @@ Granularidade de \textbf{1 linha}; \texttt{OMP\_NUM\_THREADS=16} (2 threads por 
 \includegraphics[width=\linewidth]{fig_forte.pdf}
 \end{column}
 \begin{column}{0.45\textwidth}
-\textbf{Speed-up de 4,3$\times$ a 46$\times$} (4 $\to$ 64 núcleos).
+\textbf{Híbrido e MPI pura escalam quase igual}: $\sim$\textbf{46$\times$} e \textbf{44$\times$} em 64 unidades.
 \begin{itemize}
-  \item Até 16 núcleos: \textbf{quase ideal} --- o workpool mantém todas as threads ocupadas.
-  \item \emph{Superlinear} no início (E$>$1): subvetor menor por núcleo $\Rightarrow$ melhor uso de \textbf{cache}.
-  \item Ganhos diminuem além dos núcleos físicos (próximo slide).
+  \item Até 16 unidades: \textbf{quase ideal} --- o workpool mantém tudo ocupado.
+  \item \emph{Superlinear} no híbrido (E$>$1): menor \emph{working-set} por núcleo $\Rightarrow$ melhor \textbf{cache}.
+  \item Ganhos diminuem além dos núcleos físicos (HT, próximo slide).
 \end{itemize}
 \end{column}
 \end{columns}
@@ -146,12 +146,12 @@ Granularidade de \textbf{1 linha}; \texttt{OMP\_NUM\_THREADS=16} (2 threads por 
 \includegraphics[width=\linewidth]{fig_efic.pdf}
 \end{column}
 \begin{column}{0.45\textwidth}
-Eficiência: $1{,}06 \to 0{,}99 \to 0{,}88 \to \mathbf{0{,}72}$.
+Eficiência (forte) cai a $\sim$\textbf{0,7} em 64 unidades --- nas \textbf{duas} versões.
 \begin{itemize}
-  \item \textbf{32 núcleos} = 8 threads/nó = \emph{todos os núcleos físicos}: contenção de banda de memória.
-  \item \textbf{64 núcleos} = 16 threads/nó = \textbf{Hyper-Threading} (2 threads/núcleo) --- HT \emph{não dobra} o desempenho.
+  \item \textbf{32} = todos os núcleos \emph{físicos}: contenção de banda de memória.
+  \item \textbf{64} = \textbf{Hyper-Threading} (2 fluxos/núcleo) --- HT \emph{não dobra} o desempenho.
 \end{itemize}
-$\Rightarrow$ o platô é \textbf{esperado}: é o limite físico da máquina, não do algoritmo.
+$\Rightarrow$ o platô é \textbf{esperado}: limite físico da máquina, não do algoritmo.
 \end{column}
 \end{columns}
 \end{frame}
@@ -175,37 +175,30 @@ $\Rightarrow$ vale dedicar 1 \textbf{núcleo} ($-16\%$), \textbf{nunca um nó} (
 \end{frame}
 
 % ---------------------------------------------------------------
-\begin{frame}{Híbrido $\times$ MPI pura}
-\begin{columns}[c]
-\begin{column}{0.55\textwidth}
-\includegraphics[width=\linewidth]{fig_hibxmpi.pdf}
-\end{column}
-\begin{column}{0.45\textwidth}
-Mesma alocação (4 nós):
+\begin{frame}{Híbrido $\times$ MPI pura: empate técnico}
+As curvas de speed-up (forte \emph{e} fraca) são \textbf{praticamente coincidentes}:
 \begin{itemize}
-  \item 64 unidades: \textbf{2,01\,s} (híbrido) vs \textbf{2,00\,s} (MPI pura) --- \textbf{empate técnico}.
+  \item \textbf{Forte}: 46$\times$ (híbrido) vs 44$\times$ (MPI pura) em 64 unidades.
+  \item \textbf{Fraca}: 50$\times$ (híbrido) vs 48$\times$ (MPI pura).
+  \item \textbf{Por quê?} Problema \emph{compute-bound} e independente: distribuir por \emph{threads} ou por \emph{processos} rende igual.
 \end{itemize}
-\textbf{Por quê?} Problema \emph{compute-bound} e independente: distribuir por \emph{threads} ou por \emph{processos} rende igual.
-\vspace{4pt}
-
-\textbf{Vantagem do híbrido}: 5 ranks MPI vs 64 $\Rightarrow$ menos memória e mensagens (cresce com a escala).
-\end{column}
-\end{columns}
+\vspace{6pt}
+\textbf{Vantagem do híbrido}: usa \textbf{5 ranks MPI} em vez de 64 (em 4 nós) $\Rightarrow$ muito menos memória e mensagens --- ganho que \textbf{cresce com a escala}.
 \end{frame}
 
 % ---------------------------------------------------------------
-\begin{frame}{Escalabilidade fraca}
+\begin{frame}{Escalabilidade fraca (speed-up)}
 \begin{columns}[c]
 \begin{column}{0.55\textwidth}
 \includegraphics[width=\linewidth]{fig_fraca.pdf}
 \end{column}
 \begin{column}{0.45\textwidth}
-Carga $\propto$ threads $\Rightarrow$ tempo deveria ser \textbf{constante}.
+Carga $\propto$ unidades. Mede-se o \textbf{speed-up escalado} (Gustafson) $=T_{seq}(\text{carga})/T_{par}$.
 \begin{itemize}
-  \item Até 32 núcleos: $16{,}6 \to 17{,}7$\,s, eficiência \textbf{0,94} --- quase ideal.
-  \item 64 núcleos: sobe a 22\,s (0,75) --- de novo o Hyper-Threading.
+  \item Cresce quase \textbf{linearmente}: \textbf{50$\times$} (híbrido) e \textbf{48$\times$} (MPI pura) em 64 unidades.
+  \item Dobrar recursos \emph{e} problema mantém o tempo praticamente constante.
+  \item Leve perda em 64: de novo o \textbf{HT}.
 \end{itemize}
-Confirma o bom balanceamento do \textbf{workpool} + distribuição MPI sob demanda.
 \end{column}
 \end{columns}
 \end{frame}

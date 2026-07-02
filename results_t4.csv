@@ -32,3 +32,15 @@ fraca_threads,hib,4,5,16,24000,64,22.178566
 coord_dedica_nucleo,hib,4,5,15,2000,64,2.090397
 coord_nao_dedica,hib,4,5,16,2000,64,2.478364
 coord_dedica_no,hib,4,4,16,2000,64,4.038376
+# MPI pura (dados do colega, graficos.ods): max_iter=1000, T(1)=76.716772
+mpi_forte,mpi,-,1,1,1000,-,76.716772
+mpi_forte,mpi,-,4,1,1000,-,25.788336
+mpi_forte,mpi,-,8,1,1000,-,11.091363
+mpi_forte,mpi,-,16,1,1000,-,5.350919
+mpi_forte,mpi,-,32,1,1000,-,2.732991
+mpi_forte,mpi,-,64,1,1000,-,1.739022
+mpi_fraca,mpi,-,4,1,4000,-,99.793408
+mpi_fraca,mpi,-,8,1,8000,-,84.923820
+mpi_fraca,mpi,-,16,1,16000,-,79.424975
+mpi_fraca,mpi,-,32,1,32000,-,80.891410
+mpi_fraca,mpi,-,64,1,64000,-,101.279405
