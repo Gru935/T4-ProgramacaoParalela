@@ -47,11 +47,11 @@
 \small
 \textbf{Dois níveis de paralelismo} (imagem 7680$\times$4320):
 \begin{itemize}\setlength{\itemsep}{4pt}
-  \item \textbf{Entre nós (MPI)} --- \emph{Coordenador/Trabalhador}: distribui blocos de linhas sob demanda; \textbf{1 processo pesado por nó}.
-  \item \textbf{Dentro do nó (OpenMP)} --- \emph{workpool sem mestre}: todas as threads pegam a próxima linha de uma \textbf{estrutura de dados} (\texttt{atomic capture}).
+  \item \textbf{Entre máquinas (MPI)} --- \emph{Coordenador/Trabalhador}: distribui blocos de linhas sob demanda; \textbf{1 processo pesado por máquina}.
+  \item \textbf{Dentro da máquina (OpenMP)} --- \emph{workpool sem mestre}: todas as threads pegam a próxima linha de uma \textbf{estrutura de dados} (\texttt{atomic capture}).
 \end{itemize}
 \smallskip
-Carga \textbf{irregular} $\Rightarrow$ \textbf{balanceamento dinâmico}. Rodado em \textbf{4 nós} do Atlantica.
+Carga \textbf{irregular} $\Rightarrow$ \textbf{balanceamento dinâmico}. Rodado em \textbf{4 máquinas} do Atlantica.
 \end{column}
 \begin{column}{0.42\textwidth}
 \centering
