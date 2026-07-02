@@ -7,9 +7,8 @@
 \usepackage{helvet}
 \renewcommand{\familydefault}{\sfdefault}
 
-% ---------- paleta clean ----------
-\definecolor{primary}{HTML}{2C3E50}   % azul-ardósia (títulos/estrutura)
-\definecolor{accent}{HTML}{18BC9C}    % verde-água (destaques)
+% paleta sobria: praticamente monocromatica (ardosia escura + cinza)
+\definecolor{primary}{HTML}{2C3E50}
 \definecolor{darktext}{HTML}{22303C}
 \definecolor{softgray}{HTML}{8A97A0}
 
@@ -19,24 +18,18 @@
 \setbeamercolor{structure}{fg=primary}
 \setbeamercolor{frametitle}{fg=primary}
 \setbeamerfont{frametitle}{series=\bfseries,size=\Large}
-\setbeamerfont{title}{series=\bfseries}
-\setbeamercolor{itemize item}{fg=accent}
-\setbeamercolor{itemize subitem}{fg=accent}
-\setbeamertemplate{itemize item}{\small\raisebox{0.12ex}{\textbf{--}}}
+\setbeamertemplate{itemize item}{\small\raisebox{0.15ex}{\textbf{--}}}
 \setbeamertemplate{itemize subitem}{\scriptsize\raisebox{0.15ex}{$\bullet$}}
 
-% título de frame limpo com régua de destaque
+% titulo de frame limpo com regua fina
 \setbeamertemplate{frametitle}{%
   \vspace{0.7em}\hspace{0.2em}\usebeamerfont{frametitle}\usebeamercolor[fg]{frametitle}\insertframetitle\par
-  \vspace{0.15em}{\color{accent}\rule{\dimexpr\textwidth\relax}{1.6pt}}\par\vspace{-0.2em}%
+  \vspace{0.15em}{\color{primary}\rule{\textwidth}{0.8pt}}\par\vspace{-0.2em}%
 }
-% rodapé minimalista (número da página)
+% rodape minimalista
 \setbeamertemplate{footline}{%
   \hspace*{\fill}{\color{softgray}\scriptsize\insertframenumber\,/\,\inserttotalframenumber}\hspace{1.2em}\vspace{0.7em}%
 }
-
-\newcommand{\hi}[1]{{\color{accent}\textbf{#1}}}   % destaque em verde-água
-\newcommand{\pr}[1]{{\color{primary}\textbf{#1}}}  % destaque em azul
 
 \begin{document}
 
@@ -44,9 +37,9 @@
 \begin{frame}[plain]
 \vspace{0.4em}
 {\color{primary}\bfseries\Large Cálculo Paralelo do Conjunto de Mandelbrot}\\[2pt]
-{\color{accent}\large\bfseries Versão Híbrida MPI + OpenMP}\\[3pt]
+{\bfseries\large Versão Híbrida MPI + OpenMP}\\[3pt]
 {\color{softgray}\footnotesize Bernardo Luiz Padilha Zamin \;\textbullet\; João Pedro Sostruznik Sotero da Cunha \;\textbullet\; Prog.\ Paralela --- T4 --- PUCRS}\\[3pt]
-{\color{accent}\rule{\textwidth}{1.6pt}}
+{\color{primary}\rule{\textwidth}{0.8pt}}
 \vspace{0.7em}
 
 \begin{columns}[c]
@@ -54,11 +47,11 @@
 \small
 \textbf{Dois níveis de paralelismo} (imagem 7680$\times$4320):
 \begin{itemize}\setlength{\itemsep}{4pt}
-  \item \pr{Entre nós (MPI)} --- \emph{Coordenador/Trabalhador}: distribui blocos de linhas sob demanda; \hi{1 processo pesado por nó}.
-  \item \pr{Dentro do nó (OpenMP)} --- \emph{workpool sem mestre}: todas as threads pegam a próxima linha de uma \hi{estrutura de dados} (\texttt{atomic capture}).
+  \item \textbf{Entre nós (MPI)} --- \emph{Coordenador/Trabalhador}: distribui blocos de linhas sob demanda; \textbf{1 processo pesado por nó}.
+  \item \textbf{Dentro do nó (OpenMP)} --- \emph{workpool sem mestre}: todas as threads pegam a próxima linha de uma \textbf{estrutura de dados} (\texttt{atomic capture}).
 \end{itemize}
 \smallskip
-Carga \textbf{irregular} $\Rightarrow$ \hi{balanceamento dinâmico}. Rodado em \hi{4 nós} do Atlantica.
+Carga \textbf{irregular} $\Rightarrow$ \textbf{balanceamento dinâmico}. Rodado em \textbf{4 nós} do Atlantica.
 \end{column}
 \begin{column}{0.42\textwidth}
 \centering
@@ -71,16 +64,17 @@ Carga \textbf{irregular} $\Rightarrow$ \hi{balanceamento dinâmico}. Rodado em \
 % ===================== SLIDE 2 -- GRAFICOS E TABELAS =====================
 \begin{frame}{Resultados}
 \begin{columns}[c]
-\begin{column}{0.60\textwidth}
+\begin{column}{0.56\textwidth}
+\centering
 \includegraphics[width=\linewidth]{graficos.pdf}
 \end{column}
-\begin{column}{0.39\textwidth}
-\scriptsize
-{\color{primary}\textbf{Escalabilidade forte}} \, (speed-up $S$ / efic.\ $E$)\\[2pt]
-\setlength{\arrayrulewidth}{0.3pt}
+\begin{column}{0.44\textwidth}
+\centering\scriptsize
+\setlength{\tabcolsep}{4pt}
+\textbf{Escalabilidade forte} (speed-up $S$ / efic.\ $E$)\\[2pt]
 \begin{tabular}{r rr rr}
 \toprule
-& \multicolumn{2}{c}{\color{primary}Híbrido} & \multicolumn{2}{c}{\color{primary}MPI pura} \\
+& \multicolumn{2}{c}{Híbrido} & \multicolumn{2}{c}{MPI pura} \\
 \cmidrule(lr){2-3}\cmidrule(lr){4-5}
 un. & $S$ & $E$ & $S$ & $E$ \\ \midrule
 1  & ---  & ---  & 1,00 & 1,00 \\
@@ -88,34 +82,37 @@ un. & $S$ & $E$ & $S$ & $E$ \\ \midrule
 8  & 8,49 & 1,06 & 6,92 & 0,86 \\
 16 & 15,9 & 0,99 & 14,3 & 0,90 \\
 32 & 28,1 & 0,88 & 28,1 & 0,88 \\
-64 & \hi{46,3} & 0,72 & \hi{44,1} & 0,69 \\ \bottomrule
+64 & 46,3 & 0,72 & 44,1 & 0,69 \\ \bottomrule
 \end{tabular}
 
-\vspace{5pt}
-\begin{minipage}[t]{0.44\textwidth}
-{\color{primary}\textbf{Fraca}} (speed-up)\\[2pt]
+\vspace{7pt}
+\setlength{\tabcolsep}{4pt}
+\begin{minipage}[t]{0.44\linewidth}
+\centering
+\textbf{Fraca} (speed-up)\\[2pt]
 \begin{tabular}{r rr}
 \toprule
 un. & Híb. & MPI \\ \midrule
 4  & 4,2  & 3,1 \\
 16 & 16,6 & 15,5 \\
 32 & 31,5 & 30,3 \\
-64 & \hi{50,4} & \hi{48,5} \\ \bottomrule
+64 & 50,4 & 48,5 \\ \bottomrule
 \end{tabular}
 \end{minipage}\hfill
-\begin{minipage}[t]{0.52\textwidth}
-{\color{primary}\textbf{Coordenador}} (4 nós)\\[2pt]
+\begin{minipage}[t]{0.54\linewidth}
+\centering
+\textbf{Coordenador} (4 nós)\\[2pt]
 \begin{tabular}{l r}
 \toprule
 Alocação & Tempo \\ \midrule
-Dedica 1 núcleo & \hi{2,09s} \\
+Dedica 1 núcleo & 2,09s \\
 Não dedica      & 2,48s \\
 Dedica um nó    & 4,04s \\ \bottomrule
 \end{tabular}
 \end{minipage}
 
-\vspace{4pt}
-{\color{softgray}\tiny un.\ de cálculo $=$ núcleos (híbrido) / processos (MPI pura).}
+\vspace{6pt}
+{\color{softgray}\scriptsize un.\ de cálculo $=$ núcleos (híbrido) / processos (MPI pura).}
 \end{column}
 \end{columns}
 \end{frame}
@@ -123,15 +120,15 @@ Dedica um nó    & 4,04s \\ \bottomrule
 % ===================== SLIDE 3 -- CONCLUSAO =====================
 \begin{frame}{Conclusões}
 \begin{itemize}
-  \item Cumprimos o modelo: \pr{MPI Coordenador/Trabalhador} (1 processo pesado/nó) $+$ \pr{workpool OpenMP sem mestre} (controle por estrutura de dados, 2 threads/núcleo com HT).
+  \item Cumprimos o modelo: \textbf{MPI Coordenador/Trabalhador} (1 processo pesado/nó) $+$ \textbf{workpool OpenMP sem mestre} (controle por estrutura de dados, 2 threads/núcleo com HT).
   \medskip
-  \item \textbf{Boa escalabilidade}: speed-up de \hi{46$\times$} (forte) e \hi{50$\times$} (fraca) em 64 unidades --- escalabilidade fraca quase ideal.
+  \item \textbf{Boa escalabilidade}: speed-up de \textbf{46$\times$} (forte) e \textbf{50$\times$} (fraca) em 64 unidades --- escalabilidade fraca quase ideal.
   \medskip
-  \item A queda de eficiência em 64 unidades é o \hi{limite do Hyper-Threading} (2 fluxos/núcleo), não do algoritmo; no início há \emph{superlinearidade} por melhor uso de \textbf{cache}.
+  \item A queda de eficiência em 64 unidades é o \textbf{limite do Hyper-Threading} (2 fluxos/núcleo), não do algoritmo; no início há \emph{superlinearidade} por melhor uso de \textbf{cache}.
   \medskip
-  \item \textbf{Alocação do coordenador}: vale dedicar \hi{1 núcleo} ($-16\%$, evita oversubscrição), mas \hi{nunca um nó} inteiro ($+63\%$).
+  \item \textbf{Alocação do coordenador}: vale dedicar \textbf{1 núcleo} a ele ($-16\%$, evita oversubscrição), mas \textbf{nunca um nó} inteiro ($+63\%$).
   \medskip
-  \item \pr{Híbrido $\times$ MPI pura}: desempenho \textbf{praticamente igual}, mas o híbrido usa \hi{muito menos ranks} MPI (5 vs 64) --- menos memória e mensagens, vantagem que cresce com a escala.
+  \item \textbf{Híbrido $\times$ MPI pura}: desempenho \textbf{praticamente igual}, mas o híbrido usa \textbf{muito menos ranks} MPI (5 vs 64) --- menos memória e mensagens, vantagem que cresce com a escala.
 \end{itemize}
 \end{frame}
 
