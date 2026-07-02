@@ -44,14 +44,17 @@
 
 \begin{columns}[c]
 \begin{column}{0.58\textwidth}
-\small
-\textbf{Dois níveis de paralelismo} (imagem 7680$\times$4320):
-\begin{itemize}\setlength{\itemsep}{4pt}
-  \item \textbf{Entre máquinas (MPI)} --- \emph{Coordenador/Trabalhador}: distribui blocos de linhas sob demanda; \textbf{1 processo pesado por máquina}.
-  \item \textbf{Dentro da máquina (OpenMP)} --- \emph{workpool sem mestre}: todas as threads pegam a próxima linha de uma \textbf{estrutura de dados} (\texttt{atomic capture}).
+\footnotesize
+\textbf{Problema:} conjunto de Mandelbrot ($7680\times4320$) --- cada pixel repete $z=z^2+c$ até escapar. Pixels \textbf{independentes}, mas de \textbf{custo irregular}.
+\smallskip
+
+\textbf{Proposta:} versão \textbf{híbrida MPI + OpenMP} em dois níveis:
+\begin{itemize}\setlength{\itemsep}{2pt}
+  \item \textbf{Entre máquinas (MPI)} --- Coordenador/Trabalhador: distribui blocos de linhas \textbf{sob demanda} (1 processo pesado/máquina).
+  \item \textbf{Dentro da máquina (OpenMP)} --- \emph{workpool sem mestre}: threads pegam a próxima linha de uma \textbf{estrutura de dados} compartilhada.
 \end{itemize}
 \smallskip
-Carga \textbf{irregular} $\Rightarrow$ \textbf{balanceamento dinâmico}. Rodado em \textbf{4 máquinas} do Atlantica.
+Carga irregular $\Rightarrow$ \textbf{balanceamento dinâmico}. Rodado em \textbf{4 máquinas} do Atlantica.
 \end{column}
 \begin{column}{0.42\textwidth}
 \centering
@@ -111,10 +114,10 @@ Dedica um nó    & 4,04s \\ \bottomrule
 % ===================== SLIDE 3 -- CONCLUSAO =====================
 \begin{frame}{Conclusões}
 \begin{itemize}\setlength{\itemsep}{12pt}
-  \item A versão híbrida MPI + OpenMP foi implementada seguindo o modelo proposto --- Coordenador/Trabalhador entre os nós e \emph{workpool} sem mestre dentro do nó --- e sua correção se confirma pela saída idêntica à da versão sequencial.
+  \item A versão híbrida MPI + OpenMP foi implementada seguindo o modelo proposto --- Coordenador/Trabalhador entre as máquinas e \emph{workpool} sem mestre dentro da máquina --- e sua correção se confirma pela saída idêntica à da versão sequencial.
   \item A solução escala bem: speed-up de cerca de \textbf{46$\times$} em 64 núcleos, próximo do ideal até os núcleos físicos. A perda de eficiência aparece apenas na região de Hyper-Threading, como era esperado.
   \item O híbrido teve desempenho equivalente ao da versão MPI pura, mas usando bem menos processos MPI --- o que reduz memória e comunicação e tende a compensar em maior escala.
-  \item Na alocação do coordenador, o melhor é reservar apenas um núcleo para ele, nunca um nó inteiro.
+  \item Na alocação do coordenador, o melhor é reservar apenas um núcleo para ele, nunca uma máquina inteira.
 \end{itemize}
 \end{frame}
 
