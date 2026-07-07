@@ -1,0 +1,95 @@
+#!/bin/bash
+# =============================================================================
+#  run_atlantica.sh - coleta de tempos do Trabalho 4 (Mandelbrot hibrido)
+#  no cluster Atlantica (SLURM). Gera results_t4.csv para montar as tabelas
+#  e graficos de speed-up / eficiencia do relatorio.
+#
+#  Uso (dentro do diretorio do repo, no atlantica):
+#     ./run_atlantica.sh                 # MAXITER=2000, base fraca=1500
+#     ./run_atlantica.sh 3000 2000       # MAXITER e base custom
+#
+#  Nos do Atlantica: 16 CPUs logicas = 8 nucleos x 2 HT. Por isso o hibrido
+#  usa OMP_NUM_THREADS=16 (duas threads por nucleo) e a MPI pura usa ate
+#  16 processos por no.
+#
+#  CSV: experimento,versao,nodes,procs,threads,maxiter,rows,segundos
+# =============================================================================
+set -u
+cd "$(dirname "$0")" || exit 1
+
+# mpicc do LAD (para o ladcomp funcionar fora de um shell de login)
+export PATH=/LADAPPs/OpenMPI/openmpi-4.1.1/bin:$PATH
+
+# Trava: garante uma unica execucao simultanea deste driver.
+exec 9>.run_atlantica.lock
+flock -n 9 || { echo "Ja existe uma execucao em andamento; saindo."; exit 0; }
+
+MAXITER=${1:-2000}      # carga fixa para escalabilidade FORTE
+WEAK_BASE=${2:-1500}    # carga por trabalhador para escalabilidade FRACA
+ROWS=64
+OUT=results_t4.csv
+LADCOMP=/LADAPPs/ladscripts/ladcomp
+
+# Descarta a escrita do PPM (232 MB): nao afeta o tempo medido, que e tomado
+# ANTES do save_ppm. Acelera muito a varredura e poupa I/O no NFS.
+ln -sf /dev/null mandelbrot.ppm
+
+echo "### Compilando com ladcomp (-O3) ..."
+gcc -O3 mandelbrot-seq.c -o mandelbrot-seq -lm                          || exit 1
+$LADCOMP -env mpicc -O3 mandelbrot-mpi.c -o mandelbrot-mpi -lm          || exit 1
+$LADCOMP -env mpicc -O3 mandelbrot-hib.c -o mandelbrot-hib -fopenmp -lm || exit 1
+echo "### OK. MAXITER=$MAXITER WEAK_BASE=$WEAK_BASE"
+
+gt(){ awk '/Tempo total/{print $3}'; }
+echo "experimento,versao,nodes,procs,threads,maxiter,rows,segundos" > $OUT
+emit(){ echo "RESULT $*"; echo "$*" >> $OUT; }
+
+# ---------- baseline sequencial (referencia do speed-up) ----------
+t=$(./mandelbrot-seq $MAXITER | gt);                 emit "baseline,seq,1,1,1,$MAXITER,-,$t"
+
+# ---------- escalabilidade FORTE: HIBRIDO sempre -N 4 -n 5, variando threads ----
+# Metodologia do professor: 4 nos, 1 coordenador + 4 trabalhadores (coordenador
+# compartilha o no 0); escala pelo nº de threads por trabalhador -> 4 a 64 nucleos.
+for th in 1 2 4 8 16; do
+  t=$(OMP_NUM_THREADS=$th srun --exclusive -N 4 -n 5 --overcommit ./mandelbrot-hib $MAXITER $ROWS | gt)
+  emit "forte_threads,hib,4,5,$th,$MAXITER,$ROWS,$t"
+done
+
+# ---------- escalabilidade FORTE: MPI PURA, 1 processo por CPU logica (HT) ----
+for N in 2 3 4; do
+  np=$((N*16))
+  t=$(srun --exclusive -N $N -n $np ./mandelbrot-mpi $MAXITER | gt)
+  emit "forte_mpi_ht,mpi,$N,$np,1,$MAXITER,-,$t"
+done
+
+# ---------- escalabilidade FORTE: MPI PURA, 1 processo por nucleo fisico ------
+for N in 2 3 4; do
+  np=$((N*8))
+  t=$(srun --exclusive -N $N -n $np ./mandelbrot-mpi $MAXITER | gt)
+  emit "forte_mpi_core,mpi,$N,$np,1,$MAXITER,-,$t"
+done
+
+# ---------- alocacao do COORDENADOR (4 nos) -- granularidade de NUCLEO ----------
+# Placement: com -N 4 -n 5, o SLURM coloca ranks 0 (coordenador) e 1 (worker) no
+# MESMO no; confirme com:  srun --exclusive -N 4 -n 5 --overcommit --label hostname
+# (i) DEDICA 1 NUCLEO ao coordenador: worker do no 0 (rank 1) usa 15 threads
+#     (via omp_by_rank.sh), deixando 1 nucleo livre para o coordenador.
+t=$(srun --exclusive -N 4 -n 5 --overcommit ./omp_by_rank.sh $MAXITER $ROWS | gt)
+emit "coord_dedica_nucleo,hib,4,5,15,$MAXITER,$ROWS,$t"
+# (ii) NAO DEDICA: todos os workers com 16 threads (coordenador compartilha o no 0)
+t=$(OMP_NUM_THREADS=16 srun --exclusive -N 4 -n 5 --overcommit ./mandelbrot-hib $MAXITER $ROWS | gt)
+emit "coord_nao_dedica,hib,4,5,16,$MAXITER,$ROWS,$t"
+# (iii) DEDICA UM NO inteiro ao coordenador: n4, so 3 workers
+t=$(OMP_NUM_THREADS=16 srun --exclusive -N 4 -n 4 -c 16 ./mandelbrot-hib $MAXITER $ROWS | gt)
+emit "coord_dedica_no,hib,4,4,16,$MAXITER,$ROWS,$t"
+
+# ---------- escalabilidade FRACA: HIBRIDO -N 4 -n 5, carga proporcional as threads
+# Carga por nucleo constante: max_iter = WEAK_BASE * threads.
+for th in 1 2 4 8 16; do
+  mi=$((WEAK_BASE*th))
+  t=$(OMP_NUM_THREADS=$th srun --exclusive -N 4 -n 5 --overcommit ./mandelbrot-hib $mi $ROWS | gt)
+  emit "fraca_threads,hib,4,5,$th,$mi,$ROWS,$t"
+done
+
+echo "### FIM - resultados em $OUT"
+echo "ALL_DONE"

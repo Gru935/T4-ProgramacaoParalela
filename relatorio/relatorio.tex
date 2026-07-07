@@ -1,0 +1,203 @@
+\documentclass[10pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath}
+\usepackage[brazilian]{babel}
+\usepackage[margin=1.6cm]{geometry}
+\usepackage{multicol}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{float}
+\usepackage{xcolor}
+\usepackage{mathptmx}
+\usepackage{listings}
+
+\definecolor{cmt}{rgb}{0.0,0.5,0.0}
+\definecolor{kw}{rgb}{0.0,0.0,0.7}
+\definecolor{str}{rgb}{0.6,0.1,0.1}
+\definecolor{gry}{gray}{0.5}
+\lstset{language=C, basicstyle=\ttfamily\scriptsize, keywordstyle=\color{kw},
+  commentstyle=\color{cmt}\itshape, stringstyle=\color{str},
+  numbers=left, numberstyle=\tiny\color{gry}, numbersep=6pt,
+  breaklines=true, breakatwhitespace=false, showstringspaces=false,
+  frame=single, framesep=4pt, tabsize=4, xleftmargin=14pt,
+  morekeywords={omp,pragma}}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{2pt}
+\pagestyle{plain}
+\begin{document}
+
+\begin{center}
+  {\Large\bfseries Cálculo Paralelo do Conjunto de Mandelbrot com MPI + OpenMP}\\[3pt]
+  {\large Versão híbrida: MPI Coordenador/Trabalhador entre nós e \emph{workpool} OpenMP (sem mestre) dentro do nó}\\[6pt]
+  Bernardo Luiz Padilha Zamin \quad\textbullet\quad João Pedro Sostruznik Sotero da Cunha\\[2pt]
+  {\small Programação Paralela --- Trabalho 4 (MPI + OpenMP), PUCRS --- Escola Politécnica, 2026}
+\end{center}
+\vspace{2pt}\hrule\vspace{8pt}
+
+\begin{multicols}{2}
+
+\section*{1. Introdução}
+Implementa-se, em C, a versão \textbf{híbrida MPI + OpenMP} do cálculo do \textbf{conjunto de Mandelbrot} (imagem \textbf{7680$\times$4320}), reaproveitando o \emph{Coordenador/Trabalhador} do grupo. São \textbf{dois níveis de paralelismo}: o \textbf{MPI} distribui blocos de linhas entre os \textbf{nós} (\textbf{um processo pesado por nó}) e o \textbf{OpenMP} usa os núcleos \emph{dentro} de cada nó no modelo \textbf{workpool sem mestre}. Avaliam-se \emph{speed-up}, eficiência e escalabilidade \textbf{forte} em \textbf{4 nós}, o efeito do \textbf{Hyper-Threading}, as \textbf{formas de alocar o coordenador} e a \textbf{comparação com a MPI pura}.
+
+\section*{2. Modelo híbrido}
+\textbf{Entre nós (MPI).} Modelo \textbf{Coordenador/Trabalhador} \emph{idêntico} ao da MPI pura. O \texttt{rank 0} distribui \textbf{blocos de \texttt{rows\_per\_task} linhas sob demanda}: o trabalhador pede (\texttt{TAG\_REQUEST}), recebe \texttt{TAG\_TASK} ou \texttt{TAG\_STOP}, calcula e devolve (\texttt{TAG\_RESULT}). Há \textbf{um processo pesado por nó}, com todos os núcleos à disposição das threads. Para cada pixel itera-se $z\leftarrow z^2+c$ até $|z|>2$ ou \texttt{max\_iter}; pontos \emph{internos} custam \texttt{max\_iter} e \emph{externos} terminam cedo, gerando \textbf{carga irregular} que exige \textbf{balanceamento dinâmico}.
+
+\section*{3. Workpool OpenMP sem mestre}
+Cada bloco é processado por uma \textbf{região paralela} (\texttt{\#pragma omp parallel}). O controle está numa \textbf{estrutura de dados compartilhada} \texttt{WorkPool\{next,total\}}: \textbf{todas as threads} executam o mesmo laço e \textbf{retiram atomicamente} a próxima linha (\texttt{\#pragma omp atomic capture}) até esvaziar o pool --- \textbf{sem thread mestre}, com escalonamento \emph{self-service} emergindo da estrutura de dados. A granularidade é de \textbf{uma linha} (7680 px). Usa-se \texttt{MPI\_Init\_thread} (\texttt{MPI\_THREAD\_FUNNELED}) e \texttt{OMP\_NUM\_THREADS} de 1 a 16 (até 2 threads por núcleo, HT).
+
+\section*{4. Alocação do coordenador}
+O coordenador só distribui/coleta, ficando \textbf{quase ocioso}. Adota-se \textbf{sempre} \texttt{-N 4 -n 5}: 4 nós, \textbf{1 coordenador + 4 trabalhadores}; o SLURM coloca o coordenador (\texttt{rank 0}) e um trabalhador (\texttt{rank 1}) \emph{no mesmo nó} (confirmado: ambos em \texttt{atlantica05}). Comparam-se três alocações: (i) \textbf{dedicar 1 núcleo} (nó 0 usa 15 threads, 1 núcleo livre p/ o coordenador); (ii) \textbf{não dedicar} (nó 0 usa 16 threads, compartilhando); (iii) \textbf{dedicar um nó} (\texttt{-N 4 -n 4}, 3 trabalhadores).
+
+\section*{5. Metodologia}
+4 nós da Atlantica (LAD), SLURM, Xeon E5520, \textbf{16 CPUs lógicas/nó} (8 núcleos $\times$ 2 HT). \texttt{ladcomp -env mpicc -O3 -fopenmp}. Tempo por \texttt{MPI\_Wtime} \emph{antes} do I/O. Baseline $T(1)=93{,}19$\,s (sequencial, \texttt{max\_iter}=2000). O híbrido roda \textbf{sempre em \texttt{-N 4 -n 5}} e a escala se dá pelo \textbf{nº de threads por trabalhador} (\texttt{OMP\_NUM\_THREADS} $\in\{1,2,4,8,16\}$, ou seja \textbf{4 a 64 núcleos} de cálculo = 4 trab.\ $\times$ threads). Mantém-se \texttt{max\_iter}=2000 fixo. Speed-up$\,=T(1)/T(p)$; Eficiência$\,=$Speed-up$/p$, $p=4\times$threads. A \textbf{MPI pura} (1 processo por unidade, 1--64 processos) foi medida no seu caso de teste (\texttt{max\_iter}=1000, $T(1)=76{,}72$\,s); compara-se pelas \emph{métricas} (speed-up/eficiência). Saída \textbf{byte-idêntica} à sequencial (\texttt{md5}).
+
+\section*{6. Resultados e análise}
+\textbf{Escalabilidade forte (Tab.\,1--2, Fig.\,a--b).} Aumentando as unidades de cálculo, o híbrido (threads) e a MPI pura (processos) escalam quase idealmente, chegando a \textbf{46$\times$} e \textbf{44$\times$} em 64 unidades. O híbrido é \emph{superlinear} com poucas unidades ($E>1$): o menor \emph{working-set} por núcleo melhora o uso de \textbf{cache}. A eficiência cai a $\sim$0,7 em 64 unidades (Fig.\,b) por causa do \textbf{Hyper-Threading}: 64 unidades $=$ 2 fluxos por núcleo físico, e o HT não dobra o desempenho.
+
+\textbf{Híbrido $\times$ MPI pura.} As curvas (Fig.\,a,\,b) são \textbf{praticamente coincidentes}: neste problema \emph{compute-bound} e independente, distribuir por \emph{threads} ou por \emph{processos} rende igual. A vantagem do híbrido é usar \textbf{muito menos ranks} MPI (5 vs 64 em 4 nós) --- menos memória e mensagens, ganho que cresce com a escala.
+
+\textbf{Alocação do coordenador (Tab.\,3, Fig.\,c).} \emph{Dedicar 1 núcleo} ao coordenador (nó 0 com 15 threads) é \textbf{$\approx$16\% mais rápido} que \emph{não dedicar} (2,09 vs 2,48\,s): com 16 threads + coordenador o nó 0 fica \emph{oversubscrito} (17 fluxos em 16 CPUs), e reservar 1 núcleo elimina a contenção. Já \emph{dedicar um nó inteiro} (\texttt{n4}) é o pior caso (\textbf{4,04\,s}). Ou seja: compensa dedicar 1 \emph{núcleo}, nunca um \emph{nó}.
+
+\section*{7. Conclusão}
+A versão cumpre o modelo (\textbf{MPI Coordenador/Trabalhador}, 1 processo/nó + \textbf{workpool OpenMP sem mestre}). Escalando as threads em \texttt{-N 4 -n 5}, atinge \textbf{46,3$\times$} (64 núcleos), \textbf{empatado com a MPI pura}. \textbf{Vale dedicar 1 \emph{núcleo} ao coordenador} ($\approx$16\% mais rápido), mas \textbf{nunca um \emph{nó}} (\texttt{n4}: +63\%). A queda de eficiência é o limite do Hyper-Threading, não do algoritmo.
+
+\end{multicols}
+
+\newpage
+\begin{center}\textbf{Tabelas e gráficos}\end{center}
+
+\begin{multicols}{2}
+\begin{center}
+\textbf{Tabela 1 --- Híbrido (escalab.\ forte)}\\[3pt]
+\begin{tabular}{r r r r}
+\toprule
+un. & Tempo (s) & $S$ & $E$ \\ \midrule
+4  & 21,89 & 4,26 & 1,06 \\
+8  & 10,98 & 8,49 & 1,06 \\
+16 &  5,86 & 15,9 & 0,99 \\
+32 &  3,31 & 28,1 & 0,88 \\
+64 &  2,01 & \textbf{46,3} & 0,72 \\ \bottomrule
+\end{tabular}
+
+\vfill\columnbreak
+\textbf{Tabela 2 --- MPI pura (escalab.\ forte)}\\[3pt]
+\begin{tabular}{r r r r}
+\toprule
+un. & Tempo (s) & $S$ & $E$ \\ \midrule
+4  & 25,79 & 2,97 & 0,74 \\
+8  & 11,09 & 6,92 & 0,86 \\
+16 &  5,35 & 14,3 & 0,90 \\
+32 &  2,73 & 28,1 & 0,88 \\
+64 &  1,74 & \textbf{44,1} & 0,69 \\ \bottomrule
+\end{tabular}
+\end{center}
+\end{multicols}
+
+\begin{center}
+\textbf{Tabela 3 --- Alocação do coordenador (4 nós; lote controlado)}\\[3pt]
+\begin{tabular}{lrr}
+\toprule
+Alocação do coordenador & Tempo (s) & vs.\ não dedicar \\ \midrule
+\emph{Dedica 1 núcleo} (\texttt{n5}, nó 0 = 15 th) & \textbf{2,09} & \textbf{$-$16\%} \\
+\emph{Não dedica} (\texttt{n5}, nó 0 = 16 th)      & 2,48          & --- \\
+\emph{Dedica um nó} (\texttt{n4}, 3 trabalhadores) & 4,04          & $+$63\% \\ \bottomrule
+\end{tabular}
+\end{center}
+
+{\small \textbf{un.}\ $=$ unidades de cálculo: no híbrido $=$ núcleos ($4\times$threads, \texttt{max\_iter}=2000, $T(1)=93{,}19$\,s); na MPI pura $=$ processos (\texttt{max\_iter}=1000, $T(1)=76{,}72$\,s). Speed-up $S=T(1)/T(p)$; Eficiência $E=S/$un.; ideal $=$ linear. Os \textbf{tempos absolutos não são comparáveis entre as versões} (\texttt{max\_iter} difere): a comparação se faz pelas \emph{métricas} $S$ e $E$. Tab.\,3 é um lote controlado à parte (comparar razões, não absolutos). Imagem 7680$\times$4320.}
+
+\vspace{5pt}
+\begin{center}
+\includegraphics[width=0.98\linewidth]{graficos.pdf}\\[2pt]
+{\small Figura 1 --- híbrido $\times$ MPI pura: (a) escalabilidade forte (\emph{speed-up}); (b) eficiência (forte); (c) alocação do coordenador.}
+\end{center}
+
+\newpage
+\begin{center}{\large\bfseries Anexo --- Código-fonte (\texttt{mandelbrot-hib.c}, trechos relevantes)}\end{center}
+\vspace{3pt}
+\textbf{Versão híbrida MPI + OpenMP.} O coordenador (\texttt{rank 0}) distribui blocos de linhas sob demanda e coleta os resultados (idêntico ao \texttt{mandelbrot-mpi.c}); cada trabalhador calcula seu bloco com o \emph{workpool} OpenMP (\texttt{compute\_task\_workpool}, \emph{sem mestre}). As funções inalteradas (\texttt{mandelbrot}, \texttt{save\_ppm}) e o laço do coordenador são omitidos por brevidade. Compilação: \texttt{ladcomp -env mpicc -O3 mandelbrot-hib.c -o mandelbrot-hib -fopenmp -lm}.
+\nopagebreak
+\begin{lstlisting}
+#include <mpi.h>
+#include <omp.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
+#define WIDTH  7680
+#define HEIGHT 4320
+#define DEFAULT_ROWS_PER_TASK 64
+#define TAG_REQUEST 0
+#define TAG_TASK    1
+#define TAG_RESULT  2
+#define TAG_STOP    3
+typedef struct { int start_row; int num_rows; } Task;
+/* Estrutura de dados compartilhada que CONTROLA o workpool (sem mestre):
+   next = indice da proxima linha do bloco ainda nao tomada. */
+typedef struct { int next; int total; } WorkPool;
+int  mandelbrot(double real, double imag, int max_iter); /* z=z^2+c; igual ao seq/MPI */
+void save_ppm(const char *f, int *img, int max_iter);    /* igual ao seq/MPI */
+/* ===== WORKPOOL OpenMP: todas as threads trabalham, SEM MESTRE ===== */
+void compute_task_workpool(const Task *task, int *buffer, int max_iter)
+{
+    WorkPool pool = { .next = 0, .total = task->num_rows };
+    #pragma omp parallel                  /* todas as threads entram e trabalham */
+    {
+        while (1) {
+            int row;
+            #pragma omp atomic capture    /* retira atomicamente a proxima linha */
+            { row = pool.next; pool.next++; }  /* do pool compartilhado (sem mestre) */
+            if (row >= pool.total) break;      /* pool vazio: esta thread termina */
+            int y = task->start_row + row;
+            for (int x = 0; x < WIDTH; x++) {
+                double real = -2.5 + (3.5 * x / WIDTH);
+                double imag = -1.0 + (2.0 * y / HEIGHT);
+                buffer[row * WIDTH + x] = mandelbrot(real, imag, max_iter);
+            }
+        }
+    }
+}
+int main(int argc, char *argv[])
+{
+    int max_iter      = atoi(argv[1]);
+    int rows_per_task = (argc >= 3) ? atoi(argv[2]) : DEFAULT_ROWS_PER_TASK;
+    int provided;                         /* so a thread principal chama MPI */
+    MPI_Init_thread(&argc, &argv, MPI_THREAD_FUNNELED, &provided);
+    int rank, size;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    if (rank == 0) {
+        /* COORDENADOR: distribui blocos sob demanda (TAG_TASK) e coleta os
+           resultados (TAG_RESULT); cronometra (MPI_Wtime) e grava a imagem.
+           Identico ao mandelbrot-mpi.c (laco MPI_Probe / MPI_Recv / MPI_Send). */
+    } else {
+        /* TRABALHADOR: pede tarefa, calcula com o workpool, devolve. */
+        MPI_Status st; int request = 1;
+        while (1) {
+            MPI_Send(&request, 1, MPI_INT, 0, TAG_REQUEST, MPI_COMM_WORLD);
+            Task task;
+            MPI_Recv(&task, sizeof(Task), MPI_BYTE, 0, MPI_ANY_TAG,
+                     MPI_COMM_WORLD, &st);
+            if (st.MPI_TAG == TAG_STOP) break;
+            int *buffer = malloc(sizeof(int) * task.num_rows * WIDTH);
+            compute_task_workpool(&task, buffer, max_iter);   /* <== OpenMP */
+            MPI_Send(&task,  sizeof(Task), MPI_BYTE, 0, TAG_RESULT, MPI_COMM_WORLD);
+            MPI_Send(buffer, task.num_rows * WIDTH, MPI_INT, 0, TAG_RESULT,
+                     MPI_COMM_WORLD);
+            free(buffer);
+        }
+    }
+    MPI_Finalize();
+    return 0;
+}
+\end{lstlisting}
+
+\newpage
+\begin{center}{\large\bfseries Anexo --- Código-fonte (\texttt{mandelbrot-mpi.c}, versão MPI pura)}\end{center}
+\vspace{3pt}
+\textbf{Versão MPI pura (Coordenador/Trabalhador).} Base sobre a qual a versão híbrida foi construída (o coordenador e o protocolo de mensagens são idênticos; o híbrido apenas troca o laço de cálculo do trabalhador pelo \emph{workpool} OpenMP). Compilação: \texttt{ladcomp -env mpicc -O3 mandelbrot-mpi.c -o mandelbrot-mpi -lm}.
+\nopagebreak
+\lstinputlisting[language=C]{../mandelbrot-mpi.c}
+
+\end{document}
